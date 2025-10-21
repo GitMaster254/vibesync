@@ -1,0 +1,104 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  /* Light theme (default) */
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+
+    --primary: 271 76% 68%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 160 84% 39%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 4.8% 46.1%;
+
+    --accent: 271 76% 68%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 271 76% 68%;
+
+    --radius: 1rem;
+
+    /* Gradient tokens */
+    --gradient-primary: linear-gradient(135deg, hsl(271 76% 68%), hsl(160 84% 39%));
+    --gradient-glow: radial-gradient(circle at 50% 0%, hsl(271 76% 68% / 0.15), transparent 70%);
+    
+    /* Glass effect */
+    --glass-bg: hsla(0, 0%, 100%, 0.6);
+    --glass-border: hsla(240, 10%, 40%, 0.12);
+    
+    /* Transitions */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Dark theme (activated via .dark) */
+  .dark {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+
+    --card: 240 10% 8%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 240 10% 8%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 271 76% 68%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 160 84% 39%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 240 5% 15%;
+    --muted-foreground: 240 5% 64.9%;
+
+    --accent: 271 76% 68%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62.8% 50.6%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 240 5% 15%;
+    --input: 240 5% 15%;
+    --ring: 271 76% 68%;
+
+    --radius: 1rem;
+
+    /* Gradient tokens */
+    --gradient-primary: linear-gradient(135deg, hsl(271 76% 68%), hsl(160 84% 39%));
+    --gradient-glow: radial-gradient(circle at 50% 0%, hsl(271 76% 68% / 0.2), transparent 70%);
+    
+    /* Glass effect */
+    --glass-bg: hsla(240, 10%, 8%, 0.7);
+    --glass-border: hsla(0, 0%, 100%, 0.1);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
