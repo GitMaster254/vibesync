@@ -20,8 +20,8 @@ export async function importFilesWithWorker(
   onComplete?: () => void
 ): Promise<void> {
   return new Promise((resolve, reject) => {
-    // Always use the backend server for metadata extraction
-    const backendUrl = 'http://localhost:5000';
+    // Use environment variable for backend URL, fallback to production API path
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || '/api';
 
     // ---------- 🧠 Helper to check for duplicates ----------
     async function isDuplicateFile(file: File, existingTracks: any[]): Promise<boolean> {

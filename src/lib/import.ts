@@ -19,8 +19,8 @@ export async function importAudioFiles(
     return;
   }
 
-  // Use backend server for metadata extraction (production or local dev)
-  const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+  // Use environment variable for backend URL, fallback to production API path
+  const backendUrl = import.meta.env.VITE_BACKEND_URL || '/api';
 
   // Extract metadata using backend server
   const results = await Promise.allSettled(
