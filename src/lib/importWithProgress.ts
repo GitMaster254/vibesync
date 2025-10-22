@@ -1,7 +1,7 @@
 /**
- * Import audio files with Web Worker and progress tracking
+ * Import audio files via backend with progress tracking
  * Skips duplicates based on name + size
- * Returns a function to update progress state and a promise that resolves when done
+ * Uses Render backend (VITE_METADATA_API)
  */
 
 export type ImportProgress = {
@@ -19,13 +19,20 @@ export async function importFilesWithWorker(
   onProgress: ImportProgressCallback,
   onComplete?: () => void
 ): Promise<void> {
-  return new Promise((resolve, reject) => {
-    // Use environment variable for backend URL, fallback to production API path
-    const backendUrl = import.meta.env.VITE_BACKEND_URL || '/api';
+  return new Promise(async (resolve) => {
+    const backendUrl = import.meta.env.VITE_METADATA_API; // ✅ Use Render backend URL
 
-    // ---------- 🧠 Helper to check for duplicates ----------
+    if (!backendUrl) {
+      console.error("VITE_METADATA_API not defined");
+      throw new Error("Missing backend URL. Please define VITE_METADATA_API in .env");
+    }
+
+    const errors: Array<{ fileName: string; error: string }> = [];
+    const { getAllTracks, addTrack } = await import("./db");
+    const existingTracks = await getAllTracks();
+
+    // --- helper to check duplicates ---
     async function isDuplicateFile(file: File, existingTracks: any[]): Promise<boolean> {
-      // Normalize title (case-insensitive)
       const normalizedName = file.name.trim().toLowerCase();
       return existingTracks.some(
         (t) =>
@@ -36,204 +43,85 @@ export async function importFilesWithWorker(
       );
     }
 
-    // ---------- 💽 Backend route with FFmpeg ----------
-    const viaBackend = async () => {
-      const errors: Array<{ fileName: string; error: string }> = [];
-      const { getAllTracks, addTrack } = await import("./db");
-      const existingTracks = await getAllTracks();
+    // --- main import process ---
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
 
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-
-        // 🧩 Check duplicate
-        if (await isDuplicateFile(file, existingTracks)) {
-          errors.push({
-            fileName: file.name,
-            error: "Skipped duplicate (same name & size)",
-          });
-          onProgress({
-            active: true,
-            total: files.length,
-            current: i + 1,
-            fileName: file.name,
-            errors: [...errors],
-          });
-          continue;
-        }
-
-        const form = new FormData();
-        form.append("audio", file);
-
-        try {
-          const resp = await fetch(`${backendUrl}/extract-metadata`, {
-            method: "POST",
-            body: form,
-            mode: "cors",
-          });
-
-          if (!resp.ok) throw new Error(`Backend error ${resp.status}`);
-          const json = await resp.json();
-
-          const md = json.metadata as {
-            title: string;
-            artist: string;
-            album?: string;
-            duration?: number;
-            coverArt?: string;
-          };
-
-          const track = {
-            id: `track-${Date.now()}-${Math.random()}-${i + 1}`,
-            title: md.title || file.name.replace(/\.[^/.]+$/, ""),
-            artist: md.artist || "Unknown Artist",
-            album: md.album,
-            duration: md.duration ?? 0,
-            fileUrl: "",
-            blob: file,
-            coverArt: md.coverArt,
-            favorite: false,
-            addedAt: new Date(),
-          };
-
-          await addTrack(track);
-          existingTracks.push(track); // Add new track to memory for further checks
-
-          onProgress({
-            active: true,
-            total: files.length,
-            current: i + 1,
-            fileName: file.name,
-            errors: [...errors],
-          });
-        } catch (err) {
-          const error = err instanceof Error ? err.message : String(err);
-          errors.push({ fileName: file.name, error });
-          onProgress({
-            active: true,
-            total: files.length,
-            current: i + 1,
-            fileName: file.name,
-            errors: [...errors],
-          });
-        }
+      // skip duplicate
+      if (await isDuplicateFile(file, existingTracks)) {
+        errors.push({
+          fileName: file.name,
+          error: "Skipped duplicate (same name & size)",
+        });
+        onProgress({
+          active: true,
+          total: files.length,
+          current: i + 1,
+          fileName: file.name,
+          errors: [...errors],
+        });
+        continue;
       }
 
-      onProgress({ active: false, total: 0, current: 0, errors: [] });
-      onComplete?.();
-      resolve();
-    };
-
-    // ---------- ⚙️ Worker fallback ----------
-    const viaWorker = async () => {
-      const { getAllTracks, addTrack } = await import("./db");
-      const existingTracks = await getAllTracks();
+      const form = new FormData();
+      form.append("audio", file);
 
       try {
-        const importWorkerUrl = new URL("../workers/importWorker.ts", import.meta.url);
-        const worker = new Worker(importWorkerUrl, { type: "module" });
+        const resp = await fetch(`${backendUrl}`, {
+          method: "POST",
+          body: form,
+          mode: "cors",
+        });
 
-        type WorkerMsg =
-          | {
-              type: "metadata";
-              index: number;
-              total: number;
-              fileName: string;
-              data: {
-                title: string;
-                artist: string;
-                album?: string;
-                duration: number;
-                coverArt?: string;
-              };
-              file: File;
-            }
-          | { type: "error"; error: string; fileName: string }
-          | { type: "done"; total: number };
+        if (!resp.ok) throw new Error(`Backend error ${resp.status}`);
+        const json = await resp.json();
 
-        const errors: Array<{ fileName: string; error: string }> = [];
-
-        // Filter duplicates before sending to worker
-        const uniqueFiles = [];
-        for (const file of files) {
-          if (await isDuplicateFile(file, existingTracks)) {
-            errors.push({
-              fileName: file.name,
-              error: "Skipped duplicate (same name & size)",
-            });
-          } else {
-            uniqueFiles.push(file);
-          }
-        }
-
-        worker.postMessage({ files: uniqueFiles });
-
-        worker.onmessage = async (e: MessageEvent<WorkerMsg>) => {
-          const data = e.data;
-          if (data.type === "metadata") {
-            const { file, index, total, fileName, data: md } = data;
-            try {
-              const track = {
-                id: `track-${Date.now()}-${Math.random()}-${index}`,
-                title: md.title,
-                artist: md.artist,
-                album: md.album,
-                duration: md.duration,
-                fileUrl: "",
-                blob: file,
-                coverArt: md.coverArt,
-                favorite: false,
-                addedAt: new Date(),
-              };
-              await addTrack(track);
-              existingTracks.push(track);
-
-              onProgress({
-                active: true,
-                total,
-                current: index,
-                fileName,
-                errors: [...errors],
-              });
-            } catch (err) {
-              const error = err instanceof Error ? err.message : String(err);
-              errors.push({ fileName, error });
-              onProgress({
-                active: true,
-                total,
-                current: index,
-                fileName,
-                errors: [...errors],
-              });
-            }
-          } else if (data.type === "error") {
-            const { error, fileName } = data;
-            errors.push({ fileName, error });
-            onProgress({
-              active: true,
-              total: files.length,
-              current: 0,
-              errors: [...errors],
-            });
-          } else if (data.type === "done") {
-            worker.terminate();
-            onProgress({ active: false, total: 0, current: 0, errors: [] });
-            onComplete?.();
-            resolve();
-          }
+        const md = json.metadata as {
+          title: string;
+          artist: string;
+          album?: string;
+          duration?: number;
+          coverArt?: string;
         };
 
-        worker.onerror = (err) => {
-          worker.terminate();
-          onProgress({ active: false, total: 0, current: 0, errors: [] });
-          reject(err);
+        const track = {
+          id: `track-${crypto.randomUUID()}`, // ✅ use robust unique ID
+          title: md.title || file.name.replace(/\.[^/.]+$/, ""),
+          artist: md.artist || "Unknown Artist",
+          album: md.album,
+          duration: md.duration ?? 0,
+          fileUrl: "",
+          blob: file,
+          coverArt: md.coverArt,
+          favorite: false,
+          addedAt: new Date(),
         };
+
+        await addTrack(track);
+        existingTracks.push(track);
+
+        onProgress({
+          active: true,
+          total: files.length,
+          current: i + 1,
+          fileName: file.name,
+          errors: [...errors],
+        });
       } catch (err) {
-        reject(err);
+        const error = err instanceof Error ? err.message : String(err);
+        errors.push({ fileName: file.name, error });
+        onProgress({
+          active: true,
+          total: files.length,
+          current: i + 1,
+          fileName: file.name,
+          errors: [...errors],
+        });
       }
-    };
+    }
 
-    // ---------- Choose path ----------
-    // Always try backend first, fallback to worker on failure
-    viaBackend().catch(() => viaWorker());
+    onProgress({ active: false, total: 0, current: 0, errors: [] });
+    onComplete?.();
+    resolve();
   });
 }
