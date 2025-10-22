@@ -67,7 +67,7 @@ export async function importFilesWithWorker(
       form.append("audio", file);
 
       try {
-        const resp = await fetch(`${backendUrl}`, {
+        const resp = await fetch(`${backendUrl}/api/extract-metadata`, {
           method: "POST",
           body: form,
           mode: "cors",
