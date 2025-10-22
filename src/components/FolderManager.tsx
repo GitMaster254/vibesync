@@ -136,10 +136,10 @@ const FolderManager: React.FC<FolderManagerProps> = ({
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border bg-muted/20 py-12 px-4 text-center">
           <FolderOpen className="mb-4 h-16 w-16 text-muted-foreground" />
           <h3 className="mb-2 text-lg font-semibold">No folders added yet</h3>
-          <Button onClick={handleAddFolder} className="mt-2">
+          {/* <Button onClick={handleAddFolder} className="mt-2">
             <Plus className="mr-2 h-4 w-4" />
             Add Your First Folder
-          </Button>
+          </Button> */}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
