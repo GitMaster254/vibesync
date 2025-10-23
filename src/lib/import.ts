@@ -19,8 +19,8 @@ export async function importAudioFiles(
     return;
   }
 
-  // Use environment variable for backend URL, fallback to localhost:5000 in dev, /api in prod
-  const backendUrl = import.meta.env.VITE_BACKEND_URL || (import.meta.env.DEV ? 'http://localhost:5000' : '/api');
+  // Use environment variable for backend URL, fallback to localhost:5000 in development
+  const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
   // Extract metadata using backend server
   const results = await Promise.allSettled(

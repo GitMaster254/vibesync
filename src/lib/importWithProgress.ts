@@ -77,22 +77,24 @@ export async function importFilesWithWorker(
         const json = await resp.json();
 
         const md = json.metadata as {
-          title: string;
-          artist: string;
+          title?: string;
+          artist?: string;
           album?: string;
           duration?: number;
           coverArt?: string;
         };
 
+        const fileNameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
+
         const track = {
           id: `track-${crypto.randomUUID()}`, // ✅ use robust unique ID
-          title: md.title || file.name.replace(/\.[^/.]+$/, ""),
-          artist: md.artist || "Unknown Artist",
-          album: md.album,
-          duration: md.duration ?? 0,
+          title: md?.title || fileNameWithoutExt || "Unknown Title", // Fallback to file name
+          artist: md?.artist || "Unknown Artist",
+          album: md?.album || "Unknown Album",
+          duration: md?.duration ?? 0,
           fileUrl: "",
           blob: file,
-          coverArt: md.coverArt,
+          coverArt: md?.coverArt,
           favorite: false,
           addedAt: new Date(),
         };

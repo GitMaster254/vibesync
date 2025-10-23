@@ -143,7 +143,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   
   // Play a specific track
   playTrack: (track, tracks) => {
-    let currentQueue = tracks && tracks.length > 0 ? tracks : [track];
+    const currentQueue = tracks && tracks.length > 0 ? tracks : [track];
     const index = currentQueue.findIndex(t => t.id === track.id);
 
     set({
