@@ -3,22 +3,25 @@ import { openDB, IDBPDatabase } from 'idb';
 /**
  * IndexedDB Schema for VibeSync
  * Stores tracks, playlists, and app settings locally
- */
-export interface Track {
+ */ 
+export type Track = {
   id: string;
   title: string;
   artist: string;
-  album?: string;
+  album: string;
   duration: number;
   fileUrl: string;
-  blob?: Blob;
+  blob: File;
   coverArt?: string;
+  year?: number;
+  trackNumber?: number;
+  genre?: string;
+  bitrate?: number;
+  sampleRate?: number;
+  codec?: string;
   favorite: boolean;
   addedAt: Date;
-  // Play stats (optional to preserve backward compatibility)
-  playCount?: number;
-  lastPlayed?: number; // epoch ms
-}
+};
 
 export interface Playlist {
   id: string;

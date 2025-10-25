@@ -29,6 +29,7 @@ import { toast } from "sonner";
 import { PlaylistCard } from "@/components/PlaylistCard";
 import { TrackCard } from "@/components/TrackCard";
 import FolderManager from "@/components/FolderManager";
+import{ importFilesWithProgress} from "@/lib/importWithProgress";
 import { Track } from "@/lib/db";
 
 export default function Library() {
@@ -124,7 +125,101 @@ const loadTracks = async () => {
     toast.error("Failed to load tracks");
   }
 };
+// Add this handler function
+const handleFileImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const files = Array.from(event.target.files || []);
+  if (files.length === 0) return;
 
+  console.log('Starting import of', files.length, 'files:', files.map(f => f.name));
+
+  setImportProgress({
+    active: true,
+    total: files.length,
+    current: 0,
+    fileName: "Starting import...",
+    errors: []
+  });
+
+  try {
+    // Use your chosen import function here
+    await importFilesWithProgress(files, (progress) => {
+      setImportProgress(prev => ({ ...prev, ...progress }));
+    });
+    
+    console.log('Import completed successfully');
+
+    // Reload tracks after import
+    await loadTracks();
+    toast.success(`Successfully imported ${files.length} files`);
+  } catch (error) {
+    console.error('Import failed:', error);
+    toast.error(`Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  } finally {
+    console.log('Import process finished');
+    setImportProgress(prev => ({ ...prev, active: false }));
+    setImportProgress(prev => ({ ...prev, active: false }));
+  }
+};
+
+const handleFolderImport = async () => {
+  if (!canUseShowDirectoryPicker) {
+    toast.error("Folder selection is not supported in your browser");
+    return;
+  }
+
+  try {
+    const directoryHandle = await (window as any).showDirectoryPicker();
+    const files = await getAllFilesFromDirectory(directoryHandle);
+    
+    if (files.length === 0) {
+      toast.error("No audio files found in the selected folder");
+      return;
+    }
+
+    setImportProgress({
+      active: true,
+      total: files.length,
+      current: 0,
+      fileName: "",
+      errors: []
+    });
+
+    // Use the same import function for both files and folders
+    await importFilesWithProgress(files, (progress) => {
+      setImportProgress(prev => ({ ...prev, ...progress }));
+    });
+    
+    await loadTracks();
+    toast.success(`Imported ${files.length} files from folder`);
+  } catch (error) {
+    if (error.name !== 'AbortError') {
+      toast.error("Failed to import folder");
+    }
+  } finally {
+    setImportProgress(prev => ({ ...prev, active: false }));
+  }
+};
+
+// Helper function to get all files from a directory
+const getAllFilesFromDirectory = async (dirHandle) => {
+  const files = [];
+  
+  const processEntry = async (handle) => {
+    if (handle.kind === 'file') {
+      const file = await handle.getFile();
+      if (file.type.startsWith('audio/')) {
+        files.push(file);
+      }
+    } else if (handle.kind === 'directory') {
+      for await (const entry of handle.values()) {
+        await processEntry(entry);
+      }
+    }
+  };
+  
+  await processEntry(dirHandle);
+  return files;
+};
   const handleSearchClick = () => {
     setIsSearchOpen(true);
     setTimeout(() => {
@@ -355,9 +450,9 @@ const loadTracks = async () => {
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   disabled={!canUseShowDirectoryPicker}
-                  onClick={() => setTab("folder")}
+                  onClick={handleFolderImport}
                 >
-                  <FolderOpen className="mr-2 h-4 w-4" /> Manage folders…
+                  <FolderOpen className="mr-2 h-4 w-4" /> Upload folders…
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -564,6 +659,15 @@ const loadTracks = async () => {
         </AnimatePresence>
       </div>
 
+      {/* Add the hidden file input here */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        multiple
+        accept="audio/*"
+        onChange={handleFileImport}
+        style={{ display: 'none' }}
+      />
       {/* Import Progress UI - remains the same */}
       {importProgress.active && (
         importMinimized ? (

@@ -10,7 +10,7 @@ type Props = {
   accent?: 'primary' | 'teal' | 'pink' | 'purple';
 };
 
-export default function VisualizerBars({ className, bars = 24, height = 160, rounded = true, accent = 'primary' }: Props) {
+export default function VisualizerBars({ className, bars = 24, height = 190, rounded = true, accent = 'primary' }: Props) {
   const { bins, level } = useAudioAnalyser({ bins: bars, fftSize: 256, smoothing: 0.8 });
   const barCount = Math.max(8, Math.min(64, bars));
   const items = useMemo(() => Array.from({ length: barCount }), [barCount]);
