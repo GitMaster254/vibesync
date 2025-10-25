@@ -1,4 +1,4 @@
-import { Home, Library, Settings, Search } from 'lucide-react';
+import { Home, Library, Settings, Search, CompassIcon } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
@@ -13,6 +13,7 @@ export function NavBar() {
   const navItems = [
     { icon: Home, label: 'Home', path: '/' },
     { icon: Library, label: 'Library', path: '/library' },
+    { icon: CompassIcon, label: 'Explore ', path: '/explore' },
     { icon: Settings, label: 'Settings', path: '/settings' },
   ];
 

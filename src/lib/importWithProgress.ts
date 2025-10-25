@@ -5,7 +5,7 @@ export type ImportProgress = {
   total: number;
   current: number;
   fileName?: string;
-  errors?: Array<{ fileName: string; error: string }>;
+  errors?: string[] | { fileName: string; error: string }[];
 };
 
 export type ImportProgressCallback = (progress: ImportProgress) => void;

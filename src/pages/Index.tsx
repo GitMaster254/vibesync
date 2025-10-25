@@ -76,7 +76,7 @@ export default function Index() {
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
                 className="relative aspect-[4/3] rounded-2xl overflow-hidden cursor-pointer transition-transform hover:scale-105"
                 style={{ background: 'linear-gradient(135deg, #ff758c 0%, #ff7eb3 100%)' }}
-                onClick={() => navigate('/library?tab=tracks&filter=favorites')}>
+                onClick={() => navigate('/favorites')}>
                 <div className="absolute top-3 right-3 bg-white/20 backdrop-blur-sm rounded-full px-2 py-1 text-white text-xs font-semibold">{favoriteTracks.length}</div>
                 <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
                   <Heart className="h-10 w-10 text-white mb-2" strokeWidth={1.5} />

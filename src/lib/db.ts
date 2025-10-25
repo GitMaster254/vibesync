@@ -14,7 +14,7 @@ export type Track = {
   blob: File;
   coverArt?: string;
   year?: number;
-  trackNumber?: number;
+  trackNumber?: number | null;
   genre?: string;
   bitrate?: number;
   sampleRate?: number;
