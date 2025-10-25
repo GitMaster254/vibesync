@@ -9,7 +9,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { getStoredTheme, getSystemTheme, setTheme, type Theme } from '@/lib/theme';
 import { cn } from '@/lib/utils';
-import { isHapticsEnabled, setHapticsEnabled } from '@/lib/haptics';
+import { isHapticsEnabled } from '@/lib/haptics';
 
 /**
  * Settings page - App configuration and info
@@ -18,7 +18,6 @@ export default function Settings() {
   // Import progress state
   const [importProgress, setImportProgress] = useState<ImportProgress>({ active: false, total: 0, current: 0 });
   const [importMinimized, setImportMinimized] = useState(false);
-  const workerRef = useRef<Worker | null>(null);
   // Theme state is controlled here; persisted and applied via lib/theme
   const [isDarkTheme, setIsDarkTheme] = useState(false);
   const switchRef = useRef<HTMLButtonElement | null>(null);
@@ -95,14 +94,9 @@ export default function Settings() {
     toast.success(`Karaoke effect: ${karaokeEffects.find(e => e.value === value)?.label}`);
   };
 
-  const handleAutoScanToggle = (checked: boolean) => {
-    setAutoScanEnabled(checked);
-    toast.info(checked ? 'Auto-scan enabled' : 'Auto-scan disabled');
-  };
 
   const handleHapticsToggle = (checked: boolean) => {
     setHaptics(checked);
-    setHapticsEnabled(checked);
     toast.success(checked ? 'Haptics enabled' : 'Haptics disabled');
   };
 
