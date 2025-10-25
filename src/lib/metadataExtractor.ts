@@ -1,4 +1,4 @@
-import * as mm from 'music-metadata';
+import * as mm from 'music-metadata-browser';
 
 /**
  * Extracts metadata from an audio file in the browser
