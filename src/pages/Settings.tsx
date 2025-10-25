@@ -2,7 +2,7 @@ import { Music, Info, Shield, Trash2, Share } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { addTrack, type Track } from '@/lib/db';
-import { importFilesWithWorker, type ImportProgress } from '@/lib/importWithProgress';
+import { type ImportProgress } from '@/lib/importWithProgress';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
@@ -106,44 +106,6 @@ export default function Settings() {
     toast.success(checked ? 'Haptics enabled' : 'Haptics disabled');
   };
 
-  // Enhanced import handler with progress
-  // Use Web Worker for import
-  const handlePickFolders = async () => {
-    if ('showDirectoryPicker' in window) {
-      try {
-        const dirHandle = await (window as unknown as { showDirectoryPicker: () => Promise<FileSystemDirectoryHandle> }).showDirectoryPicker();
-        setScanFolders([dirHandle.name]);
-        toast.success(`Selected folder: ${dirHandle.name}`);
-        // TODO: Save handle for future scans (requires IndexedDB or File System Access API persistence)
-
-        // Scan files in directory and import with progress
-        if ('values' in dirHandle) {
-           // FileSystemDirectoryHandle.values() is not typed in TS yet
-          const files: File[] = [];
-           // FileSystemDirectoryHandle.values() is not typed in TS yet
-           // @ts-expect-error: FileSystemDirectoryHandle.values() is not typed in TS yet
-           for await (const entry of dirHandle.values()) {
-            if (entry.kind === 'file') {
-               // FileSystemFileHandle.getFile() is not typed in TS yet
-              const file = await entry.getFile();
-              files.push(file);
-            }
-          }
-          if (files.length > 0) {
-            await importFilesWithWorker(files, setImportProgress);
-            toast.success('Import completed');
-          }
-        }
-      } catch (err: unknown) {
-        const name = (err as { name?: string } | null)?.name;
-        if (name !== 'AbortError') {
-          toast.error('Failed to select folder');
-        }
-      }
-    } else {
-      toast.error('Folder picker not supported in this browser');
-    }
-  };
 // importAudioFilesWithProgress now handled by Web Worker
 
   const handleClearCache = async () => {
@@ -229,56 +191,6 @@ export default function Settings() {
 
   return (
     <div className="min-h-screen pb-40 pt-4">
-      {/* Modal overlay for import progress (Web Worker) with Minimize */}
-      {importProgress.active && !importMinimized && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-            className="bg-card rounded-xl shadow-xl p-6 w-full max-w-sm flex flex-col items-center"
-          >
-            <Music className="h-10 w-10 text-primary mb-4 animate-spin" aria-hidden="true" />
-            <h2 className="text-lg font-semibold mb-2 text-center">Please wait, we're uploading your files for a seamless experience.</h2>
-            <p className="text-xs text-muted-foreground mb-4 text-center">This only happens the first time.</p>
-            <Progress value={Math.round((importProgress.current / importProgress.total) * 100)} className="w-full mb-2" />
-            <span className="text-xs text-muted-foreground">{importProgress.current} / {importProgress.total} files uploaded</span>
-            {importProgress.fileName && (
-              <span className="text-xs text-primary mt-2">Processing: {importProgress.fileName}</span>
-            )}
-            {importProgress.errors && importProgress.errors.length > 0 && (
-              <div className="mt-2 w-full">
-                <span className="text-xs text-destructive font-semibold">Errors:</span>
-                <ul className="text-xs text-destructive list-disc ml-4">
-                  {importProgress.errors.map((err, idx) => (
-                    <li key={idx}>{err.fileName}: {err.error}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            <button
-              className="mt-4 px-3 py-1 rounded bg-muted text-xs text-muted-foreground hover:bg-muted/80 transition"
-              onClick={() => setImportMinimized(true)}
-              aria-label="Minimize import modal"
-            >
-              Minimize
-            </button>
-          </motion.div>
-        </div>
-      )}
-
-      {/* Floating minimized import status bar */}
-      {importProgress.active && importMinimized && (
-        <div className="fixed bottom-4 left-1/2 z-[9999] -translate-x-1/2 bg-card rounded-full shadow-lg px-4 py-2 flex items-center gap-3 cursor-pointer" onClick={() => setImportMinimized(false)} aria-label="Restore import modal">
-          <Music className="h-5 w-5 text-primary animate-spin" aria-hidden="true" />
-          <span className="text-xs font-medium">Importing {importProgress.current}/{importProgress.total}</span>
-          {importProgress.fileName && (
-            <span className="text-xs text-primary">{importProgress.fileName}</span>
-          )}
-          <Progress value={Math.round((importProgress.current / importProgress.total) * 100)} className="w-20" />
-          <span className="text-xs text-muted-foreground ml-2">Tap to restore</span>
-        </div>
-      )}
       <div className="container mx-auto max-w-2xl px-4">
         {/* Header */}
         <div className="mb-6">
@@ -370,30 +282,6 @@ export default function Settings() {
             >
               Current: {karaokeEffects.find(e => e.value === karaokeEffect)?.label}
             </motion.div>
-          )}
-        </motion.div>
-
-        {/* Auto-scan toggle */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.05 }}
-          className="rounded-lg border border-border bg-card p-4 mb-4"
-        >
-          <h2 className="mb-3 text-sm font-semibold text-muted-foreground uppercase">
-            Library
-          </h2>
-          <div className="flex items-center justify-between mb-2">
-            <span className="font-medium">Auto-scan folders for new music</span>
-            <Switch checked={autoScanEnabled} onCheckedChange={handleAutoScanToggle} />
-          </div>
-          <Button variant="outline" className="w-full mt-2" onClick={handlePickFolders}>
-            Choose folders to scan
-          </Button>
-          {scanFolders.length > 0 && (
-            <div className="mt-2 text-xs text-muted-foreground">
-              Selected: {scanFolders.join(', ')}
-            </div>
           )}
         </motion.div>
 
