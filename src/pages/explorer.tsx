@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { TrackCard } from "@/components/TrackCard";
 import { toast } from "sonner";
 import { usePlayerStore } from "@/store/usePlayerStore";
-import { spotifyApi, isSpotifyConfigured, ExplorerTrack, Genre } from "@/lib/spotify";
+import { spotifyProxy, isProxyConfigured, ExplorerTrack, Genre } from "@/lib/spotify-proxy";
 
 export default function Explorer() {
   const [tab, setTab] = useState<"charts" | "genres" | "search">("charts");
@@ -23,7 +23,7 @@ export default function Explorer() {
   const playTrack = usePlayerStore((s) => s.playTrack);
 
   // Check if Spotify is configured
-  const spotifyConfigured = isSpotifyConfigured();
+  const spotifyConfigured = isProxyConfigured();
 
   // Fetch featured tracks (as charts)
   const fetchCharts = useCallback(async () => {
@@ -34,7 +34,7 @@ export default function Explorer() {
 
     try {
       setLoading(true);
-      const featuredTracks = await spotifyApi.getFeaturedTracks(50);
+      const featuredTracks = await spotifyProxy.getFeaturedTracks(50);
       setTracks(featuredTracks);
     } catch (error) {
       console.error("Charts fetch error:", error);
@@ -42,20 +42,20 @@ export default function Explorer() {
     } finally {
       setLoading(false);
     }
-  }, [spotifyConfigured]);
+  }, []);
 
   // Fetch genres
   const fetchGenres = useCallback(async () => {
     if (!spotifyConfigured) return;
 
     try {
-      const genreList = await spotifyApi.getGenres();
+      const genreList = await spotifyProxy.getGenres();
       setGenres(genreList);
     } catch (error) {
       console.error("Genres fetch error:", error);
       toast.error("Couldn't load genres");
     }
-  }, [spotifyConfigured]);
+  }, []);
 
   // Fetch tracks by genre
   const fetchGenreTracks = useCallback(async (genreId: string) => {
@@ -63,7 +63,7 @@ export default function Explorer() {
 
     try {
       setLoading(true);
-      const genreTracksData = await spotifyApi.getGenreTracks(genreId, 20);
+      const genreTracksData = await spotifyProxy.getGenreTracks(genreId, 20);
       setGenreTracks(genreTracksData);
       setSelectedGenre(genres.find(g => g.id === genreId) || null);
     } catch (error) {
@@ -72,7 +72,7 @@ export default function Explorer() {
     } finally {
       setLoading(false);
     }
-  }, [genres, spotifyConfigured]);
+  }, [genres]);
 
   // Search tracks with debouncing
   useEffect(() => {
@@ -84,7 +84,7 @@ export default function Explorer() {
     const timeoutId = setTimeout(async () => {
       setSearchLoading(true);
       try {
-        const results = await spotifyApi.searchTracks(searchQuery, 20);
+        const results = await spotifyProxy.searchTracks(searchQuery, 20);
         setSearchResults(results);
       } catch (error) {
         console.error("Search error:", error);
@@ -96,7 +96,7 @@ export default function Explorer() {
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [searchQuery, spotifyConfigured]);
+  }, [searchQuery]);
 
   useEffect(() => {
     fetchGenres();

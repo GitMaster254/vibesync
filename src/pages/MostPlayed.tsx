@@ -71,6 +71,7 @@ export default function MostPlayed() {
           <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
+          
           <div className="flex items-center gap-3">
             <div className="rounded-xl bg-gradient-to-br from-pink-300 to-purple-200 p-3">
               <TrendingUp className="h-8 w-8 text-purple-900" />

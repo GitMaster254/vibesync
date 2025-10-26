@@ -1,10 +1,34 @@
-import { Heart, Play, Pause, MoreVertical, Trash2, X } from 'lucide-react';
+import { Heart, Play, Pause, MoreVertical, Trash2, X, Share, Plus, Check} from 'lucide-react';
 import { Track } from '@/lib/db';
 import { usePlayerStore } from '@/store/usePlayerStore';
 import { Button } from './ui/button';
 import { cn } from '@/lib/utils';
 import { formatTime } from '@/lib/audio';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator
+  , } from '@/components/ui/dropdown-menu';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
+import { Checkbox } from './ui/checkbox';
+import { useState, useRef } from 'react';
+
+export interface Playlist {
+    id: string;
+    name: string;
+    description:string;
+    trackIds: string[];  
+    createdAt: Date;
+    updatedAt: Date;
+}
 
 export interface TrackCardProps {
   track: Track;
@@ -12,15 +36,33 @@ export interface TrackCardProps {
   onToggleFavorite?: (track: Track) => void;
   onDelete?: (track: Track) => void;
   onRemoveFromPlaylist?: (track: Track) => void;
+  playlists:Playlist[];
+  onToggleTrackInPlaylist: (playlistId: string, track: Track) => void; // 👈 Function to add/remove track
+  isTrackInPlaylist: (playlistId: string, trackId: string) => boolean;
+  isInSelectionMode: boolean; // Flag if multiselect is active
+  isSelected: boolean;       // Current track's selection status
+  onToggleSelection: (trackId: string) => void; // Handler for toggling selection
 }
 
 /**
  * Track card component for displaying song information
  * Includes play button and favorite toggle
  */
-export function TrackCard({ track, tracks, onToggleFavorite, onDelete, onRemoveFromPlaylist }: TrackCardProps) {
+export function TrackCard({ track,
+  tracks, onToggleFavorite,
+  onDelete,
+  isInSelectionMode,
+  isSelected,
+  onRemoveFromPlaylist,
+  playlists,
+  onToggleTrackInPlaylist,
+  isTrackInPlaylist
+}: TrackCardProps) {
+
   const { currentTrack, isPlaying, playTrack, setIsPlaying } = usePlayerStore();
   const isCurrentTrack = currentTrack?.id === track.id;
+  const [isBottomSheetOpen, setIsBottomSheetOpen] = useState(false);
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
 
   const handleShare = async () => {
     const shareData = {
@@ -55,13 +97,53 @@ export function TrackCard({ track, tracks, onToggleFavorite, onDelete, onRemoveF
     }
   };
 
+  const handleLongPressStart = () => {
+    longPressTimer.current = setTimeout(() => {
+      setIsBottomSheetOpen(true);
+    }, 3000); // 500ms long press
+  };
+
+  const handleLongPressEnd = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  const handleBottomSheetAction = (action: string) => {
+    setIsBottomSheetOpen(false);
+    switch (action) {
+      case 'play':
+        handlePlay();
+        break;
+      case 'favorite':
+        onToggleFavorite?.(track);
+        break;
+      case 'share':
+        handleShare();
+        break;
+      case 'delete':
+        onDelete?.(track);
+        break;
+    }
+  };
+  const onToggleSelection =(action: string)=>{ }
+
   return (
-    <div
-      className={cn(
-        'group flex items-center gap-2 sm:gap-3 rounded-lg p-2 sm:p-3 transition-all hover:bg-muted/50 overflow-hidden',
-        isCurrentTrack && 'bg-muted/50'
-      )}
-    >
+    <Sheet open={isBottomSheetOpen} onOpenChange={setIsBottomSheetOpen}>
+      <SheetTrigger asChild>
+        <div
+          className={cn(
+            'group flex items-center gap-2 sm:gap-3 rounded-lg p-2 sm:p-3 transition-all hover:bg-muted/50 overflow-hidden cursor-pointer',
+            isCurrentTrack && 'bg-muted/50',
+            isSelected && 'bg-primary/10'
+          )}
+          onTouchStart={handleLongPressStart}
+          onTouchEnd={handleLongPressEnd}
+          onMouseDown={handleLongPressStart}
+          onMouseUp={handleLongPressEnd}
+          onMouseLeave={handleLongPressEnd}
+        >
       {/* Album art / Play button */}
       <div className="relative h-12 w-12 sm:h-14 sm:w-14 flex-shrink-0">
         {track.coverArt ? (
@@ -104,6 +186,15 @@ export function TrackCard({ track, tracks, onToggleFavorite, onDelete, onRemoveF
         </p>
       </div>
 
+      {/* Checkbox in selection mode */}
+      {isInSelectionMode && (
+        <Checkbox
+          checked={isSelected}
+          onCheckedChange={() => onToggleSelection(track.id)}
+          className="flex-shrink-0"
+        />
+      )}
+
       {/* Actions */}
       <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
         <Button
@@ -145,6 +236,80 @@ export function TrackCard({ track, tracks, onToggleFavorite, onDelete, onRemoveF
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-    </div>
+        </div>
+      </SheetTrigger>
+
+      <SheetContent side="bottom" className="rounded-t-lg">
+        <SheetHeader>
+          <SheetTitle>Track Options</SheetTitle>
+        </SheetHeader>
+        <div className="space-y-4 mt-4">
+          <Button
+            variant="ghost"
+            className="w-full justify-start"
+            onClick={() => handleBottomSheetAction('play')}
+          >
+            <Play className="mr-2 h-4 w-4" />
+            Play
+          </Button>
+          <Button
+            variant="ghost"
+            className="w-full justify-start"
+            onClick={() => handleBottomSheetAction('favorite')}
+          >
+            <Heart className="mr-2 h-4 w-4" />
+            {track.favorite ? 'Unfavorite' : 'Favorite'}
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="w-full justify-start">
+                <Plus className="mr-2 h-4 w-4" />
+                Add to Playlist
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-[12rem]">
+              {playlists?.map((playlist) => (
+                <DropdownMenuItem
+                  key={playlist.id}
+                  onClick={() => {
+                    onToggleTrackInPlaylist(playlist.id, track);
+                    setIsBottomSheetOpen(false);
+                  }}
+                >
+                  <Check className={cn(
+                    'mr-2 h-4 w-4',
+                    isTrackInPlaylist(playlist.id, track.id) ? 'opacity-100' : 'opacity-0'
+                  )} />
+                  {playlist.name}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="w-full justify-start">
+                <MoreVertical className="mr-2 h-4 w-4" />
+                More
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-[12rem]">
+              <DropdownMenuItem onClick={() => handleBottomSheetAction('share')}>
+                <Share className="mr-2 h-4 w-4" />
+                Share
+              </DropdownMenuItem>
+              {onDelete && (
+                <DropdownMenuItem
+                  className="text-red-600 focus:text-red-600"
+                  onClick={() => handleBottomSheetAction('delete')}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }

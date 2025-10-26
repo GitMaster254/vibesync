@@ -1,4 +1,4 @@
-import React, { Suspense, useRef, useState, useMemo, useEffect } from "react";
+import React, { Suspense, useRef, useState, useMemo, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FileMusic,
@@ -29,24 +29,47 @@ import { toast } from "sonner";
 import { PlaylistCard } from "@/components/PlaylistCard";
 import { TrackCard } from "@/components/TrackCard";
 import FolderManager from "@/components/FolderManager";
-import{ importFilesWithProgress} from "@/lib/importWithProgress";
+import { importFilesWithProgress } from "@/lib/importWithProgress";
 import { Track } from "@/lib/db";
+import { Playlist } from "@/components/TrackCard";
+import {
+  loadPlaylistsFromStorage,
+  savePlaylistsToStorage,
+  filterAndSortPlaylists,
+  filterAndSortTracks,
+  getAllFilesFromDirectory,
+  createPlaylist,
+  deletePlaylist,
+  toggleTrackInPlaylist,
+  isTrackInPlaylist,
+  deleteTrack,
+  handleFileImport,
+  handleFolderImport,
+  handleSearchClick,
+  handleSearchClose,
+  handleSearchChange,
+  handleSearchKeyDown,
+  AppTrack,
+} from "@/lib/libraryFunctions";
 
 export default function Library() {
   const [tab, setTab] = useState<"tracks" | "playlists" | "folder">("tracks");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState("");
-  const [selectedPlaylist, setSelectedPlaylist] = useState<any>(null);
+  // Type updated to use the new Playlist interface
+  const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(null);
   const [importProgress, setImportProgress] = useState({
     active: false,
     total: 0,
     current: 0,
     fileName: "",
-    errors: [],
+    errors: [] as string[],
   });
   const [importMinimized, setImportMinimized] = useState(false);
-  const [playlists, setPlaylists] = useState<any[]>([]);
-  const [tracks, setTracks] = useState<any[]>([]);
+  // Initial state uses the local storage loading function
+  const [playlists, setPlaylists] = useState<Playlist[]>(loadPlaylistsFromStorage);
+  // Type updated to use the new AppTrack interface
+  const [tracks, setTracks] = useState<AppTrack[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -55,171 +78,242 @@ export default function Library() {
   const canUseShowDirectoryPicker =
     typeof window !== "undefined" && "showDirectoryPicker" in window;
 
+  // --- START: Persistence & Sorting Effects ---
+
+  // 1. Persist playlists across page refreshes
+  useEffect(() => {
+    savePlaylistsToStorage(playlists);
+  }, [playlists]);
+
   useEffect(() => {
     loadTracks();
   }, []);
-  // Filter playlists based on search query
-  const filteredPlaylists = useMemo(() => {
-    if (!searchQuery.trim()) return playlists;
-    
-    const query = searchQuery.toLowerCase();
-    return playlists.filter(playlist => 
-      playlist.name?.toLowerCase().includes(query)
-    );
-  }, [playlists, searchQuery]);
 
-  // Filter tracks based on search query
-  const filteredTracks = useMemo(() => {
-    if (!searchQuery.trim()) return tracks;
-    
-    const query = searchQuery.toLowerCase();
-    return tracks.filter(track => 
-      track.title?.toLowerCase().includes(query) ||
-      track.artist?.toLowerCase().includes(query) ||
-      track.album?.toLowerCase().includes(query)
-    );
-  }, [tracks, searchQuery]);
+  // Use a callback for track loading
+  const loadTracks = useCallback(async () => {
+    try {
+      const { getAllTracks } = await import("@/lib/db");
+      const loadedTracks = await getAllTracks() as AppTrack[];
+      // The sorting logic is applied here
+      const sortedTracks = loadedTracks.sort((a, b) => a.title.localeCompare(b.title));
+      setTracks(sortedTracks);
+      console.log('Loaded and sorted tracks from DB:', sortedTracks.length);
+    } catch (error) {
+      console.error('Failed to load tracks:', error);
+      toast.error("Failed to load tracks");
+    }
+  }, []); // Empty dependency array means this function is created once
+
+  // --- END: Persistence & Sorting Effects ---
+
+  // --- START: Sorting Logic in useMemo ---
+
+  // 2. Show tracks and playlists in alphabetical order
+
+  // Sorted list of playlists (already filtered)
+  const filteredPlaylists = useMemo(() => filterAndSortPlaylists(playlists, searchQuery), [playlists, searchQuery]);
+
+  // Sorted list of tracks (already filtered)
+  const filteredTracks = useMemo(() => filterAndSortTracks(tracks, searchQuery), [tracks, searchQuery]);
 
   // Check search states
-  const hasPlaylistSearchResults = searchQuery.trim() && filteredPlaylists.length > 0;
   const noPlaylistSearchResults = searchQuery.trim() && filteredPlaylists.length === 0;
-  const hasTrackSearchResults = searchQuery.trim() && filteredTracks.length > 0;
   const noTrackSearchResults = searchQuery.trim() && filteredTracks.length === 0;
 
-  // Handlers
+  // --- END: Sorting Logic in useMemo ---
+
+
+  // --- START: Playlist Management Handlers ---
+
+  const updatePlaylistsState = (newPlaylists: Playlist[]) => {
+    // This helper centralizes state update and local storage saving
+    setPlaylists(newPlaylists);
+    savePlaylistsToStorage(newPlaylists);
+  };
+
   const handleCreatePlaylist = () => {
     if (!newPlaylistName.trim()) {
       toast.error("Enter a playlist name");
       return;
     }
     
-    const newPlaylist = {
+    const newPlaylist: Playlist = {
       id: Date.now().toString(),
-      name: newPlaylistName,
+      name: newPlaylistName.trim(),
       trackIds: [],
       description: "",
+      createdAt: new Date(Date.now().toString()),
+      updatedAt: new Date(Date.now().toString()),
     };
     
-    setPlaylists((prev) => [...prev, newPlaylist]);
+    // Use helper to update state and storage
+    updatePlaylistsState([...playlists, newPlaylist]);
     setNewPlaylistName("");
     setIsDialogOpen(false);
     toast.success("Playlist created!");
   };
 
-  const handleDeleteTrack = (track: Track) => {
-    setTracks((prev) => prev.filter((t) => t.id !== track.id));
+  const handleDeletePlaylist = (playlistId: string) => {
+    const newPlaylists = playlists.filter((p) => p.id !== playlistId);
+    updatePlaylistsState(newPlaylists);
+    toast.success("Playlist deleted!");
   };
 
-  const handleToggleFavorite = (track: Track) => {
-    // Toggle favorite status for the track
-  };
+  // 3. Allow adding/removing tracks from playlists.
+  const handleToggleTrackInPlaylist = (playlistId: string, track: AppTrack) => {
+    const newPlaylists = playlists.map(playlist => {
+      if (playlist.id === playlistId) {
+        const trackIndex = playlist.trackIds.indexOf(track.id);
+        
+        let newTrackIds;
+        if (trackIndex > -1) {
+          // Track is already in the playlist, so remove it
+          newTrackIds = playlist.trackIds.filter(id => id !== track.id);
+          toast.info(`Removed "${track.title}" from "${playlist.name}"`);
+        } else {
+          // Track is not in the playlist, so add it
+          newTrackIds = [...playlist.trackIds, track.id];
+          toast.success(`Added "${track.title}" to "${playlist.name}"`);
+        }
 
-const loadTracks = async () => {
-  try {
-    const { getAllTracks } = await import("@/lib/db");
-    const loadedTracks = await getAllTracks();
-    setTracks(loadedTracks);
-    console.log('Loaded tracks from DB:', loadedTracks.length);
-  } catch (error) {
-    console.error('Failed to load tracks:', error);
-    toast.error("Failed to load tracks");
-  }
-};
-// Add this handler function
-const handleFileImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
-  const files = Array.from(event.target.files || []);
-  if (files.length === 0) return;
-
-  console.log('Starting import of', files.length, 'files:', files.map(f => f.name));
-
-  setImportProgress({
-    active: true,
-    total: files.length,
-    current: 0,
-    fileName: "Starting import...",
-    errors: []
-  });
-
-  try {
-    // Use your chosen import function here
-    await importFilesWithProgress(files, (progress) => {
-      setImportProgress(prev => ({ ...prev, ...progress }));
+        return {
+          ...playlist,
+          trackIds: newTrackIds,
+        };
+      }
+      return playlist;
     });
-    
-    console.log('Import completed successfully');
 
-    // Reload tracks after import
-    await loadTracks();
-    toast.success(`Successfully imported ${files.length} files`);
-  } catch (error) {
-    console.error('Import failed:', error);
-    toast.error(`Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  } finally {
-    console.log('Import process finished');
-    setImportProgress(prev => ({ ...prev, active: false }));
-    setImportProgress(prev => ({ ...prev, active: false }));
-  }
-};
+    // Update the state and local storage
+    updatePlaylistsState(newPlaylists);
 
-const handleFolderImport = async () => {
-  if (!canUseShowDirectoryPicker) {
-    toast.error("Folder selection is not supported in your browser");
-    return;
-  }
-
-  try {
-    const directoryHandle = await (window as any).showDirectoryPicker();
-    const files = await getAllFilesFromDirectory(directoryHandle);
-    
-    if (files.length === 0) {
-      toast.error("No audio files found in the selected folder");
-      return;
+    // If we're viewing the playlist being modified, update the view immediately
+    if (selectedPlaylist && selectedPlaylist.id === playlistId) {
+        // Find the newly updated playlist object and set it as selected
+        const updatedSelected = newPlaylists.find(p => p.id === playlistId);
+        if (updatedSelected) {
+            setSelectedPlaylist(updatedSelected);
+        }
     }
+  };
+
+  // Function to check if a track is in a playlist
+  const isTrackInPlaylist = (playlistId: string, trackId: string): boolean => {
+    const playlist = playlists.find(p => p.id === playlistId);
+    return playlist ? playlist.trackIds.includes(trackId) : false;
+  };
+
+  // --- END: Playlist Management Handlers ---
+
+  // Other Handlers (minimal changes)
+  const handleDeleteTrack = (track: AppTrack) => {
+    // 1. Remove the track from the main tracks state
+    setTracks((prev) => prev.filter((t) => t.id !== track.id));
+
+    // 2. Remove the track ID from all playlists
+    const newPlaylists = playlists.map((playlist) => ({
+        ...playlist,
+        trackIds: playlist.trackIds.filter(id => id !== track.id)
+    }));
+    updatePlaylistsState(newPlaylists);
+
+    toast.success(`Track "${track.title}" deleted.`);
+  };
+
+  const handleToggleFavorite = () => {
+    // Toggle favorite status for the track (implementation is external/placeholder)
+  };
+
+  // Folder import helper function (kept as is)
+  const getAllFilesFromDirectory = async (dirHandle: any) => {
+    const files: File[] = [];
+    
+    const processEntry = async (handle: any) => {
+      if (handle.kind === 'file') {
+        const file = await handle.getFile();
+        if (file.type.startsWith('audio/')) {
+          files.push(file);
+        }
+      } else if (handle.kind === 'directory') {
+        for await (const entry of handle.values()) {
+          await processEntry(entry);
+        }
+      }
+    };
+    
+    await processEntry(dirHandle);
+    return files;
+  };
+
+  const handleFileImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
+
+    console.log('Starting import of', files.length, 'files:', files.map(f => f.name));
 
     setImportProgress({
       active: true,
       total: files.length,
       current: 0,
-      fileName: "",
+      fileName: "Starting import...",
       errors: []
     });
 
-    // Use the same import function for both files and folders
-    await importFilesWithProgress(files, (progress) => {
-      setImportProgress(prev => ({ ...prev, ...progress }));
-    });
-    
-    await loadTracks();
-    toast.success(`Imported ${files.length} files from folder`);
-  } catch (error) {
-    if (error.name !== 'AbortError') {
-      toast.error("Failed to import folder");
-    }
-  } finally {
-    setImportProgress(prev => ({ ...prev, active: false }));
-  }
-};
+    try {
+      await importFilesWithProgress(files, (progress: any) => {
+        setImportProgress(prev => ({ ...prev, ...progress }));
+      });
 
-// Helper function to get all files from a directory
-const getAllFilesFromDirectory = async (dirHandle) => {
-  const files = [];
-  
-  const processEntry = async (handle) => {
-    if (handle.kind === 'file') {
-      const file = await handle.getFile();
-      if (file.type.startsWith('audio/')) {
-        files.push(file);
-      }
-    } else if (handle.kind === 'directory') {
-      for await (const entry of handle.values()) {
-        await processEntry(entry);
-      }
+      console.log('Import completed successfully');
+      await loadTracks();
+      toast.success(`Successfully imported ${files.length} files`);
+    } catch (error) {
+      console.error('Import failed:', error);
+      toast.error(`Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      console.log('Import process finished');
+      setImportProgress(prev => ({ ...prev, active: false }));
     }
   };
-  
-  await processEntry(dirHandle);
-  return files;
-};
+
+  const handleFolderImport = async () => {
+    if (!canUseShowDirectoryPicker) {
+      toast.error("Folder selection is not supported in your browser");
+      return;
+    }
+
+    try {
+      const directoryHandle = await (window as any).showDirectoryPicker();
+      const files = await getAllFilesFromDirectory(directoryHandle);
+      
+      if (files.length === 0) {
+        toast.error("No audio files found in the selected folder");
+        return;
+      }
+
+      setImportProgress({
+        active: true,
+        total: files.length,
+        current: 0,
+        fileName: "",
+        errors: []
+      });
+
+      await importFilesWithProgress(files, (progress: any) => {
+        setImportProgress(prev => ({ ...prev, ...progress }));
+      });
+      
+      await loadTracks();
+      toast.success(`Imported ${files.length} files from folder`);
+    } catch (error) {
+      if ((error as any).name !== 'AbortError') {
+        toast.error("Failed to import folder");
+      }
+    } finally {
+      setImportProgress(prev => ({ ...prev, active: false }));
+    }
+  };
+
   const handleSearchClick = () => {
     setIsSearchOpen(true);
     setTimeout(() => {
@@ -242,10 +336,21 @@ const getAllFilesFromDirectory = async (dirHandle) => {
     }
   };
 
-  const PlaylistView = ({ playlist, onBack, tracks }) => {
-    const playlistTracks = tracks.filter(track => 
-      playlist.trackIds.includes(track.id)
-    );
+  // --- START: Updated PlaylistView Component ---
+
+  // The PlaylistView component now filters tracks and sorts them by title.
+  const PlaylistView = ({ playlist, onBack, allTracks }: { playlist: Playlist, onBack: () => void, allTracks: AppTrack[] }) => {
+    // Filter and then sort tracks by title
+    const playlistTracks = useMemo(() => {
+        return allTracks
+            .filter(track => playlist.trackIds.includes(track.id))
+            .sort((a, b) => a.title.localeCompare(b.title));
+    }, [playlist.trackIds, allTracks]);
+
+    // Handler to remove a track from the current playlist
+    const handleRemoveTrackFromPlaylist = (track: AppTrack) => {
+        handleToggleTrackInPlaylist(playlist.id, track);
+    }
 
     return (
       <motion.div
@@ -261,11 +366,12 @@ const getAllFilesFromDirectory = async (dirHandle) => {
             size="icon"
             onClick={onBack}
             className="rounded-full"
+            title="Back to Playlists"
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold">{playlist.name}</h1>
+            <h1 className="text-3xl font-bold truncate max-w-[200px] sm:max-w-full">{playlist.name}</h1>
             <p className="text-sm text-muted-foreground">
               {playlistTracks.length} {playlistTracks.length === 1 ? 'track' : 'tracks'}
             </p>
@@ -303,12 +409,20 @@ const getAllFilesFromDirectory = async (dirHandle) => {
                   <div className="h-14 bg-muted/20 rounded-lg animate-pulse" />
                 }
               >
-                <TrackCard
-                  track={track}
-                  tracks={playlistTracks}
-                  onToggleFavorite={handleToggleFavorite}
-                  onDelete={handleDeleteTrack}
-                />
+          <TrackCard
+            track={track}
+            tracks={playlistTracks}
+            onToggleFavorite={handleToggleFavorite}
+            onDelete={handleDeleteTrack}
+            // Pass the remove function specific to the playlist view
+            onRemoveFromPlaylist={handleRemoveTrackFromPlaylist}
+            playlists={playlists} // Pass all playlists for the add-to-playlist dropdown
+            onToggleTrackInPlaylist={handleToggleTrackInPlaylist} // Pass the toggle function
+            isTrackInPlaylist={isTrackInPlaylist}
+            isInSelectionMode={false}
+            isSelected={false}
+            onToggleSelection={() => {}}
+          />
               </Suspense>
             ))}
           </div>
@@ -316,6 +430,44 @@ const getAllFilesFromDirectory = async (dirHandle) => {
       </motion.div>
     );
   };
+
+  // --- END: Updated PlaylistView Component ---
+
+  // --- START: PlaylistCard Update ---
+  // The PlaylistCard component needs to be updated to accept the handleDeletePlaylist prop.
+
+  // The main list of TrackCard components needs to be updated to support
+  // adding/removing tracks from playlists.
+
+  const TrackList = ({ trackList, allPlaylists }: { trackList: AppTrack[], allPlaylists: Playlist[] }) => (
+    <div className="space-y-2">
+      {trackList.map((track) => (
+        <Suspense
+          key={track.id}
+          fallback={
+            <div className="h-14 bg-muted/20 rounded-lg animate-pulse" />
+          }
+        >
+          <TrackCard
+            track={track}
+            tracks={trackList}
+            onToggleFavorite={handleToggleFavorite}
+            onDelete={handleDeleteTrack}
+            playlists={allPlaylists} // Pass all playlists
+            onToggleTrackInPlaylist={handleToggleTrackInPlaylist} // Pass the toggle function
+            isTrackInPlaylist={isTrackInPlaylist}
+            isInSelectionMode={false}
+            isSelected={false}
+            onToggleSelection={() => {}}
+            // onRemoveFromPlaylist is only passed in PlaylistView
+          />
+        </Suspense>
+      ))}
+    </div>
+  );
+  
+  // --- END: PlaylistCard Update ---
+
 
   return (
     <div className="min-h-screen pb-40 pt-4 overflow-x-hidden">
@@ -329,9 +481,10 @@ const getAllFilesFromDirectory = async (dirHandle) => {
             </p>
           </div>
 
-          {/* Search/Action Buttons */}
+          {/* Search/Action Buttons - Conditional logic remains the same */}
           {selectedPlaylist ? null : tab === "tracks" ? (
             <div className="flex items-center gap-2">
+              {/* Search UI */}
               {isSearchOpen ? (
                 <div className="flex items-center gap-2 bg-background border border-input rounded-full px-3 py-1">
                   <Search className="h-4 w-4 text-muted-foreground" />
@@ -367,6 +520,7 @@ const getAllFilesFromDirectory = async (dirHandle) => {
             </div>
           ) : tab === "playlists" ? (
             <div className="flex items-center gap-2">
+              {/* Search UI for playlists */}
               {isSearchOpen ? (
                 <div className="flex items-center gap-2 bg-background border border-input rounded-full px-3 py-1">
                   <Search className="h-4 w-4 text-muted-foreground" />
@@ -399,6 +553,7 @@ const getAllFilesFromDirectory = async (dirHandle) => {
                   >
                     <Search className="h-5 w-5" />
                   </Button>
+                  {/* Create Playlist Dialog */}
                   <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                     <DialogTrigger asChild>
                       <Button
@@ -433,6 +588,7 @@ const getAllFilesFromDirectory = async (dirHandle) => {
               )}
             </div>
           ) : (
+            /* Import Dropdown for 'folder' tab */
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -470,7 +626,7 @@ const getAllFilesFromDirectory = async (dirHandle) => {
               <div className="flex items-center gap-2">
                 <Search className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm font-medium">
-                  Search results for "{searchQuery}"
+                "{searchQuery}"
                 </span>
                 <span className="text-xs text-muted-foreground">
                   {tab === "tracks" && `(${filteredTracks.length} tracks)`}
@@ -527,13 +683,14 @@ const getAllFilesFromDirectory = async (dirHandle) => {
               <PlaylistView 
                 playlist={selectedPlaylist}
                 onBack={() => setSelectedPlaylist(null)}
-                tracks={tracks}
+                allTracks={tracks} // Pass all tracks to the view
               />
             ) : (
               <>
-                {/* PLAYLISTS */}
+                {/* PLAYLISTS TAB */}
                 {tab === "playlists" ? (
                   <>
+                    {/* Search/Empty/List logic for playlists (remains similar) */}
                     {noPlaylistSearchResults ? (
                       <motion.div
                         initial={{ opacity: 0, scale: 0.95 }}
@@ -584,6 +741,8 @@ const getAllFilesFromDirectory = async (dirHandle) => {
                             <PlaylistCard
                               playlist={playlist}
                               onClick={() => setSelectedPlaylist(playlist)}
+                              // Pass the delete handler
+                              onDelete={() => handleDeletePlaylist(playlist.id)}
                             />
                           </motion.div>
                         ))}
@@ -592,6 +751,7 @@ const getAllFilesFromDirectory = async (dirHandle) => {
                   </>
                 ) : tab === "tracks" ? (
                   <>
+                    {/* Search/Empty/List logic for tracks (remains similar) */}
                     {noTrackSearchResults ? (
                       <motion.div
                         initial={{ opacity: 0, scale: 0.95 }}
@@ -626,26 +786,11 @@ const getAllFilesFromDirectory = async (dirHandle) => {
                         </p>
                       </motion.div>
                     ) : (
-                      <div className="space-y-2">
-                        {filteredTracks.map((track) => (
-                          <Suspense
-                            key={track.id}
-                            fallback={
-                              <div className="h-14 bg-muted/20 rounded-lg animate-pulse" />
-                            }
-                          >
-                            <TrackCard
-                              track={track}
-                              tracks={filteredTracks}
-                              onToggleFavorite={handleToggleFavorite}
-                              onDelete={handleDeleteTrack}
-                            />
-                          </Suspense>
-                        ))}
-                      </div>
+                      <TrackList trackList={filteredTracks} allPlaylists={playlists} />
                     )}
                   </>
                 ) : (
+                  /* FOLDER TAB */
                   <FolderManager
                     onTracksUpdate={loadTracks}
                     importProgress={importProgress}
@@ -659,7 +804,7 @@ const getAllFilesFromDirectory = async (dirHandle) => {
         </AnimatePresence>
       </div>
 
-      {/* Add the hidden file input here */}
+      {/* Hidden file input */}
       <input
         type="file"
         ref={fileInputRef}
@@ -668,7 +813,7 @@ const getAllFilesFromDirectory = async (dirHandle) => {
         onChange={handleFileImport}
         style={{ display: 'none' }}
       />
-      {/* Import Progress UI - remains the same */}
+      {/* Import Progress UI (kept as is) */}
       {importProgress.active && (
         importMinimized ? (
           <div

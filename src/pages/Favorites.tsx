@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react';
-import { Heart } from 'lucide-react';
+import { Heart, ArrowLeft } from 'lucide-react';
 import { TrackCard } from '@/components/TrackCard';
 import { Track, getFavoriteTracks, updateTrack } from '@/lib/db';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
-
+import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
 /**
  * Favorites page - Shows all favorited tracks
  */
 export default function Favorites() {
+  const navigate = useNavigate();
   const [favorites, setFavorites] = useState<Track[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -44,11 +46,24 @@ export default function Favorites() {
     <div className="min-h-screen pb-40 pt-4">
       <div className="container mx-auto max-w-2xl px-4">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold">Favorites</h1>
-          <p className="text-sm text-muted-foreground">
+        <div className="mb-6 flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
+           <ArrowLeft className="h-5 w-5" />
+          </Button>
+
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-gradient-to-br from-pink-300 to-purple-200 p-3">
+              <Heart className="h-8 w-8 text-purple-900" />
+            </div>
+            <div>
+           <p className="text-sm text-muted-foreground">
             {favorites.length} {favorites.length === 1 ? 'track' : 'tracks'}
           </p>
+            </div>
+          <h1 className="text-3xl font-bold">Favorites</h1>
+
+          </div>
+
         </div>
 
         {/* Favorites list */}
