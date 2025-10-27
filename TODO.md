@@ -1,31 +1,29 @@
-# TODO: Enhance Player Interface and Add Features
+# Playlist Features Implementation
 
-## Initial Plan (Approved)
-- [ ] Add "Karaoke" button (Mic icon) to Player.tsx normal view for direct access to karaoke mode
-- [ ] Add "Visualizer" button to Player.tsx normal view to switch to visualizer slide
-- [ ] Expand EqualizerControls.tsx to support 10 frequency bands (32Hz, 64Hz, 125Hz, 250Hz, 500Hz, 1kHz, 2kHz, 4kHz, 8kHz, 16kHz) with sliders
-- [ ] Integrate equalizer with audio processing in audio.ts
-- [ ] Add equalizer state (bands, presets) to usePlayerStore.ts if needed
-- [ ] Add presets (Rock, Pop, Jazz) and reset button to EqualizerControls.tsx
+## Overview
+Implement comprehensive playlist management features including editing playlist names/descriptions and reordering tracks within playlists.
 
-## Additional Features to Implement
-- [ ] Shared Playlists (real-time collaborative)
-- [ ] Mood-Based Playlists (AI analysis)
-- [ ] Dynamic Themes (genre/mood-based)
-- [ ] 3D Visualizer (WebGL)
-- [ ] Album Art Galleries (Instagram-style)
-- [ ] Custom Skins (CSS customization)
-- [ ] Listening Parties (synchronized playback)
-- [ ] Music Reviews (rating system)
-- [ ] Crossfader (DJ features)
-- [ ] Audio Effects (reverb, delay, distortion)
-- [ ] Stem Separation (audio isolation)
-- [ ] Sleep Stories (AI-generated)
-- [ ] Context-Aware Playback (automation)
-- [ ] Smart Shuffle (advanced algorithms)
-- [ ] Podcast Support (media expansion)
+## Tasks
 
-## Followup Steps
-- [ ] Test karaoke and visualizer buttons
-- [ ] Test 10-band equalizer functionality
-- [ ] Test additional features as implemented
+### 1. Add Playlist Editing Functionality
+- [ ] Add edit mode to PlaylistDetail page for name and description
+- [ ] Create edit UI with input fields and save/cancel buttons
+- [ ] Update PlaylistCard to include edit button (optional)
+- [ ] Integrate with updatePlaylist function in db.ts
+
+### 2. Implement Track Reordering
+- [ ] Install drag-and-drop library (@dnd-kit/core and @dnd-kit/sortable)
+- [ ] Make track list in PlaylistDetail draggable
+- [ ] Update trackIds array on reorder
+- [ ] Persist reordered tracks to database
+
+### 3. Testing and Refinement
+- [ ] Test editing functionality across different screen sizes
+- [ ] Test drag-and-drop reordering on mobile and desktop
+- [ ] Ensure data persistence works correctly
+- [ ] Add error handling for failed updates
+
+### 4. Additional Features (if time permits)
+- [ ] Add playlist duplication feature
+- [ ] Add playlist export functionality
+- [ ] Add bulk track operations in playlist view
