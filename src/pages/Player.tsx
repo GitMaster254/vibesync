@@ -465,18 +465,36 @@ export default function Player() {
                 <h1 className="truncate text-2xl font-bold">{currentTrack.title}</h1>
                 <p className="truncate text-muted-foreground">{currentTrack.artist}</p>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleToggleFavorite}
-              >
-                <Heart
-                  className={cn(
-                    'h-6 w-6 transition-colors',
-                    currentTrack.favorite ? 'fill-primary text-primary' : 'text-muted-foreground'
-                  )}
-                />
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={activateKaraokeMode}
+                  className="h-10 w-10"
+                >
+                  <Mic className="h-5 w-5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => carouselApi?.scrollNext()}
+                  className="h-10 w-10"
+                >
+                  <Headphones className="h-5 w-5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleToggleFavorite}
+                >
+                  <Heart
+                    className={cn(
+                      'h-6 w-6 transition-colors',
+                      currentTrack.favorite ? 'fill-primary text-primary' : 'text-muted-foreground'
+                    )}
+                  />
+                </Button>
+              </div>
             </div>
           </motion.div>
 
