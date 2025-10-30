@@ -56,7 +56,8 @@ export function TrackCard({ track,
   onRemoveFromPlaylist,
   playlists,
   onToggleTrackInPlaylist,
-  isTrackInPlaylist
+  isTrackInPlaylist,
+  onToggleSelection
 }: TrackCardProps) {
 
   const { currentTrack, isPlaying, playTrack, setIsPlaying } = usePlayerStore();
@@ -127,7 +128,7 @@ export function TrackCard({ track,
         break;
     }
   };
-  const onToggleSelection =(action: string)=>{ }
+  // Removed unused local function
 
   return (
     <Sheet open={isBottomSheetOpen} onOpenChange={setIsBottomSheetOpen}>

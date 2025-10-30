@@ -8,24 +8,29 @@ import { Badge } from "@/components/ui/badge";
 import { TrackCard } from "@/components/TrackCard";
 import { toast } from "sonner";
 import { usePlayerStore } from "@/store/usePlayerStore";
-import { spotifyProxy, isProxyConfigured, ExplorerTrack, Genre } from "@/lib/spotify-proxy";
+import { spotifyProxy, isSpotifyConfigured, ExplorerTrack } from "@/lib/spotify-proxy";
 
 export default function Explorer() {
   const [tab, setTab] = useState<"charts" | "genres" | "search">("charts");
   const [tracks, setTracks] = useState<ExplorerTrack[]>([]);
-  const [genres, setGenres] = useState<Genre[]>([]);
+  const [genres, setGenres] = useState<{ id: string; name: string; }[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [genreTracks, setGenreTracks] = useState<ExplorerTrack[]>([]);
-  const [selectedGenre, setSelectedGenre] = useState<Genre | null>(null);
+  const [selectedGenre, setSelectedGenre] = useState<{ id: string; name: string; } | null>(null);
   const [searchResults, setSearchResults] = useState<ExplorerTrack[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const playTrack = usePlayerStore((s) => s.playTrack);
 
-  // Check if Spotify is configured
-  const spotifyConfigured = isProxyConfigured();
+  // Check if services are configured
+  const spotifyConfigured = isSpotifyConfigured();
+  const currentService = spotifyConfigured ? 'Spotify' : null;
 
-  // Fetch featured tracks (as charts)
+  // State for new releases
+  const [newReleases, setNewReleases] = useState<ExplorerTrack[]>([]);
+  const [featuredDescription, setFeaturedDescription] = useState('');
+  
+  // Fetch featured tracks and new releases
   const fetchCharts = useCallback(async () => {
     if (!spotifyConfigured) {
       setLoading(false);
@@ -34,15 +39,21 @@ export default function Explorer() {
 
     try {
       setLoading(true);
-      const featuredTracks = await spotifyProxy.getFeaturedTracks(50);
-      setTracks(featuredTracks);
+      const [featured, releases] = await Promise.all([
+        spotifyProxy.getFeaturedTracks(24),
+        spotifyProxy.getNewReleases(24)
+      ]);
+      
+      setTracks(featured);
+      setNewReleases(releases);
+      setFeaturedDescription('Featured tracks on Spotify');
     } catch (error) {
       console.error("Charts fetch error:", error);
       toast.error("Couldn't load featured tracks");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [spotifyConfigured]);
 
   // Fetch genres
   const fetchGenres = useCallback(async () => {
@@ -55,7 +66,7 @@ export default function Explorer() {
       console.error("Genres fetch error:", error);
       toast.error("Couldn't load genres");
     }
-  }, []);
+  }, [spotifyConfigured]);
 
   // Fetch tracks by genre
   const fetchGenreTracks = useCallback(async (genreId: string) => {
@@ -72,7 +83,7 @@ export default function Explorer() {
     } finally {
       setLoading(false);
     }
-  }, [genres]);
+  }, [genres, spotifyConfigured]);
 
   // Search tracks with debouncing
   useEffect(() => {
@@ -96,25 +107,72 @@ export default function Explorer() {
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [searchQuery]);
+  }, [searchQuery, spotifyConfigured]);
 
   useEffect(() => {
     fetchGenres();
     fetchCharts();
   }, [fetchCharts, fetchGenres]);
 
-  const handlePlay = (track: ExplorerTrack) => {
-    const playerTrack = {
-      ...track,
-      fileUrl: track.previewUrl || "",
-      blob: undefined,
-    } as any;
-    playTrack(playerTrack, [playerTrack]);
+  // Transform a Spotify track to a player track
+  const transformToPlayerTrack = (track: ExplorerTrack) => {
+    // Create a proxied URL for the preview
+    const streamUrl = track.previewUrl 
+      ? `/api/spotify/stream?url=${encodeURIComponent(track.previewUrl)}`
+      : '';
+
+    return {
+      id: track.id,
+      title: track.title,
+      artist: track.artist,
+      album: track.album || '',
+      duration: track.duration || 30000, // Default to 30s for preview
+      fileUrl: streamUrl,
+      favorite: false,
+      addedAt: new Date(),
+      blob: new File([], track.title), // Empty file since we're streaming from Spotify
+      coverArt: track.coverArt,
+      year: undefined,
+      trackNumber: null,
+      genre: undefined,
+      bitrate: undefined,
+      sampleRate: undefined,
+      codec: undefined,
+      playCount: 0,
+      lastPlayed: undefined
+    };
   };
 
-  const handleGenreClick = (genre: Genre) => {
+  const handlePlay = (track: ExplorerTrack) => {
+    // Create a player track from the current track
+    const playerTrack = transformToPlayerTrack(track);
+    
+    // Create a queue of player tracks from the current context
+    let queue = [];
+    if (tab === 'charts') {
+      queue = tracks.map(transformToPlayerTrack);
+    } else if (tab === 'genres' && selectedGenre) {
+      queue = genreTracks.map(transformToPlayerTrack);
+    } else if (tab === 'search') {
+      queue = searchResults.map(transformToPlayerTrack);
+    } else {
+      queue = [playerTrack];
+    }
+
+    // Play the track with its context queue
+    playTrack(playerTrack, queue);
+  };
+
+  const [recentGenres, setRecentGenres] = useState<string[]>([]);
+  
+  const handleGenreClick = (genre: { id: string; name: string }) => {
     setTab("genres");
     fetchGenreTracks(genre.id);
+    // Save recently clicked genres (up to 5)
+    setRecentGenres(prev => {
+      const updated = [genre.id, ...prev.filter(id => id !== genre.id)];
+      return updated.slice(0, 5);
+    });
   };
 
   // Configuration warning
@@ -135,10 +193,10 @@ export default function Explorer() {
             <AlertCircle className="h-16 w-16 text-yellow-500 mb-4" />
             <h3 className="text-lg font-semibold mb-2">Spotify Not Configured</h3>
             <p className="text-sm text-muted-foreground mb-4">
-              Please add your Spotify Client ID and Secret to enable music exploration.
+              Please add your Spotify API credentials to enable music exploration.
             </p>
             <Badge variant="outline" className="text-xs">
-              Check your .env file for VITE_SPOTIFY_CLIENT_ID and VITE_SPOTIFY_CLIENT_SECRET
+              Check your .env file for Spotify client ID and secret
             </Badge>
           </div>
         </div>
@@ -160,16 +218,14 @@ export default function Explorer() {
   return (
     <div className="min-h-screen pb-40 pt-4 bg-background">
       <div className="container mx-auto max-w-2xl px-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-6"
-        >
-          <h1 className="text-3xl font-bold mb-2">Explorer</h1>
-          <p className="text-muted-foreground">Discover new music from Spotify</p>
-        </motion.div>
-
-        <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="w-full">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6"
+          >
+            <h1 className="text-3xl font-bold mb-2">Explorer</h1>
+            <p className="text-muted-foreground">Discover new music from Spotify</p>
+          </motion.div>        <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="w-full">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="charts">
               <Zap className="mr-2 h-4 w-4" />
@@ -198,24 +254,66 @@ export default function Explorer() {
                 <p className="text-sm text-muted-foreground">Pull to refresh or try another tab</p>
               </motion.div>
             ) : (
-              <div className="space-y-3">
-                {tracks.map((track, index) => (
-                  <motion.div
-                    key={track.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                  >
-                    <TrackCard
-                      track={track as any}
-                      tracks={tracks as any[]}
-                      onPlay={() => handlePlay(track)}
-                    />
-                  </motion.div>
-                ))}
+              <div className="space-y-6">
+                {/* Featured Tracks Section */}
+                <div>
+                  <h2 className="text-xl font-bold mb-4">Featured Tracks</h2>
+                  <p className="text-sm text-muted-foreground mb-4">{featuredDescription}</p>
+                  <div className="space-y-3">
+                    {tracks.slice(0, 12).map((track, index) => (
+                      <motion.div
+                        key={track.id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                      >
+                        <TrackCard
+                          track={transformToPlayerTrack(track)}
+                          tracks={tracks.map(transformToPlayerTrack)}
+                          playlists={[]}
+                          onToggleTrackInPlaylist={() => {}}
+                          isTrackInPlaylist={() => false}
+                          isInSelectionMode={false}
+                          isSelected={false}
+                          onToggleSelection={() => {}}
+                        />
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* New Releases Section */}
+                {newReleases.length > 0 && (
+                  <div>
+                    <h2 className="text-xl font-bold mb-4">New Releases</h2>
+                    <p className="text-sm text-muted-foreground mb-4">Latest releases on Spotify</p>
+                    <div className="space-y-3">
+                      {newReleases.slice(0, 12).map((track, index) => (
+                        <motion.div
+                          key={track.id}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                        >
+                          <TrackCard
+                            track={transformToPlayerTrack(track)}
+                            tracks={newReleases.map(transformToPlayerTrack)}
+                            playlists={[]}
+                            onToggleTrackInPlaylist={() => {}}
+                            isTrackInPlaylist={() => false}
+                            isInSelectionMode={false}
+                            isSelected={false}
+                            onToggleSelection={() => {}}
+                          />
+                        </motion.div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="text-center">
                   <Badge variant="outline" className="mt-4">
-                    Powered by Spotify • 30s previews
+                    Powered by {currentService} • 30s previews
                   </Badge>
                 </div>
               </div>
@@ -258,47 +356,72 @@ export default function Explorer() {
                         transition={{ delay: index * 0.05 }}
                       >
                         <TrackCard
-                          track={track as any}
-                          tracks={genreTracks as any[]}
-                          onPlay={() => handlePlay(track)}
+                          track={transformToPlayerTrack(track)}
+                          tracks={genreTracks.map(transformToPlayerTrack)}
+                          playlists={[]}
+                          onToggleTrackInPlaylist={() => {}}
+                          isTrackInPlaylist={() => false}
+                          isInSelectionMode={false}
+                          isSelected={false}
+                          onToggleSelection={() => {}}
                         />
                       </motion.div>
                     ))}
                   </div>
                 </motion.div>
               ) : (
-                <motion.div
-                  key="genres-grid"
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="grid grid-cols-2 sm:grid-cols-3 gap-3"
-                >
-                  {genres.map((genre) => (
-                    <motion.div
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.98 }}
-                      key={genre.id}
-                      className="group relative aspect-square rounded-xl overflow-hidden bg-gradient-to-br from-muted to-muted-foreground/10 cursor-pointer"
-                      onClick={() => handleGenreClick(genre)}
-                    >
-                      {genre.cover ? (
-                        <img
-                          src={genre.cover}
-                          alt={genre.name}
-                          className="h-full w-full object-cover group-hover:scale-110 transition-transform"
-                        />
-                      ) : (
-                        <div className="h-full w-full bg-gradient-primary flex items-center justify-center">
-                          <Music className="h-8 w-8 text-white/70" />
-                        </div>
-                      )}
-                      <div className="absolute inset-0 bg-black/20 group-hover:bg-black/30 transition-all" />
-                      <div className="absolute bottom-2 left-2 right-2">
-                        <h3 className="text-white font-semibold truncate">{genre.name}</h3>
+                <div key="genres-container" className="space-y-6">
+                  {/* Recent Genres */}
+                  {recentGenres.length > 0 && (
+                    <div>
+                      <h3 className="text-lg font-semibold mb-3">Recently Explored</h3>
+                      <div className="flex gap-2 overflow-x-auto pb-2">
+                        {recentGenres.map(genreId => {
+                          const genre = genres.find(g => g.id === genreId);
+                          if (!genre) return null;
+                          return (
+                            <Button
+                              key={genre.id}
+                              variant="outline"
+                              className="flex-shrink-0"
+                              onClick={() => handleGenreClick(genre)}
+                            >
+                              {genre.name}
+                            </Button>
+                          );
+                        })}
                       </div>
+                    </div>
+                  )}
+
+                  {/* All Genres Grid */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-3">Browse All Genres</h3>
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="grid grid-cols-2 sm:grid-cols-3 gap-3"
+                    >
+                      {genres.map((genre) => (
+                        <motion.div
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.98 }}
+                          key={genre.id}
+                          className="group relative aspect-square rounded-xl overflow-hidden cursor-pointer"
+                          onClick={() => handleGenreClick(genre)}
+                        >
+                          <div className="absolute inset-0 bg-gradient-to-br from-primary/80 to-primary/20 opacity-80 group-hover:opacity-90 transition-opacity" />
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <Music className="h-8 w-8 text-white/90" />
+                          </div>
+                          <div className="absolute inset-x-3 bottom-3 text-center">
+                            <h3 className="text-white font-semibold truncate">{genre.name}</h3>
+                          </div>
+                        </motion.div>
+                      ))}
                     </motion.div>
-                  ))}
-                </motion.div>
+                  </div>
+                </div>
               )}
             </AnimatePresence>
           </TabsContent>
@@ -351,9 +474,14 @@ export default function Explorer() {
                     transition={{ delay: index * 0.05 }}
                   >
                     <TrackCard
-                      track={track as any}
-                      tracks={searchResults as any[]}
-                      onPlay={() => handlePlay(track)}
+                      track={transformToPlayerTrack(track)}
+                      tracks={searchResults.map(transformToPlayerTrack)}
+                      playlists={[]}
+                      onToggleTrackInPlaylist={() => {}}
+                      isTrackInPlaylist={() => false}
+                      isInSelectionMode={false}
+                      isSelected={false}
+                      onToggleSelection={() => {}}
                     />
                   </motion.div>
                 ))}
@@ -365,7 +493,7 @@ export default function Explorer() {
                 className="flex flex-col items-center justify-center py-12 text-center"
               >
                 <Search className="h-16 w-16 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Search Spotify</h3>
+                <h3 className="text-lg font-semibold mb-2">Search {currentService}</h3>
                 <p className="text-sm text-muted-foreground">
                   Find your favorite artists and tracks
                 </p>
