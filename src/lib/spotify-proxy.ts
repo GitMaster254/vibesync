@@ -6,11 +6,11 @@ const CLIENT_SECRET = '5d135babbd104a028fc9e884683f6ba2';
 
 // Create a proxy URL for streaming
 function createStreamUrl(previewUrl: string) {
-  // For development, you might want to use a local proxy
-  // return `http://localhost:3001/proxy/stream?url=${encodeURIComponent(previewUrl)}`;
+  // Use the preview URL directly for now since it supports CORS
+  return previewUrl;
   
-  // For production, we'll use a Vercel Edge Function or similar
-  return `/api/spotify/stream?url=${encodeURIComponent(previewUrl)}`;
+  // If CORS becomes an issue, we can use our proxy endpoint:
+  // return `/api/spotify/stream?url=${encodeURIComponent(previewUrl)}`;
 }
 
 export interface ExplorerTrack {
@@ -82,30 +82,73 @@ async function spotifyFetch(endpoint: string, options: RequestInit = {}) {
 }
 
 function transformSpotifyTrack(track: any): ExplorerTrack {
-  return {
+  if (!track || typeof track !== 'object') {
+    console.error('Invalid track data:', track);
+    throw new Error('Invalid track data received from Spotify');
+  }
+
+  // Validate required fields
+  if (!track.id || !track.name) {
+    console.error('Missing required fields in track:', track);
+    throw new Error('Missing required track information');
+  }
+
+  // Get the best available image
+  const coverArt = track.album?.images?.[0]?.url || 
+                  track.images?.[0]?.url ||
+                  undefined;
+
+  // Get preview URL and create proxied URL if available
+  const previewUrl = track.preview_url;
+  const streamUrl = previewUrl ? createStreamUrl(previewUrl) : undefined;
+
+  // Log preview URL status for debugging
+  if (!previewUrl) {
+    console.log(`No preview URL available for track: ${track.name}`);
+  }
+
+  const transformedTrack = {
     id: track.id,
     title: track.name,
-    artist: track.artists.map((a: any) => a.name).join(', '),
+    artist: track.artists?.map((a: any) => a.name).join(', ') || 'Unknown Artist',
     album: track.album?.name,
-    coverArt: track.album?.images[0]?.url,
-    previewUrl: track.preview_url,
+    coverArt,
+    previewUrl: streamUrl, // Use the proxied URL
     duration: track.duration_ms,
     externalUrl: track.external_urls?.spotify,
   };
+
+  // Log transformed track for debugging
+  console.log('Transformed track:', transformedTrack);
+  
+  return transformedTrack;
 }
 
 export const spotifyProxy = {
   // Get featured tracks
   async getFeaturedTracks(limit: number = 50): Promise<ExplorerTrack[]> {
-    const response = await spotifyFetch(`/browse/featured-playlists?limit=${limit}`);
-    const playlistId = response.playlists.items[0]?.id;
-    if (!playlistId) return [];
-    
-    const tracks = await spotifyFetch(`/playlists/${playlistId}/tracks?limit=${limit}`);
-    return tracks.items
-      .map((item: any) => item.track)
-      .filter((track: any) => track != null)
-      .map(transformSpotifyTrack);
+    try {
+      // Get recommendations using popular genres as seeds
+      const seeds = ['pop', 'hip-hop', 'rock'];
+      const recommendations = await spotifyFetch(
+        `/recommendations?seed_genres=${seeds.join(',')}&limit=${limit}&min_popularity=70`
+      );
+      
+      return recommendations.tracks.map(transformSpotifyTrack);
+    } catch (error) {
+      console.error('Failed to get featured tracks:', error);
+      // Fallback to top tracks if recommendations fail
+      const topTracks = await spotifyFetch('/browse/new-releases?limit=20');
+      const tracks = await Promise.all(
+        topTracks.albums.items.slice(0, 5).map((album: any) =>
+          spotifyFetch(`/albums/${album.id}/tracks?limit=4`)
+        )
+      );
+      
+      return tracks
+        .flatMap((response: any) => response.items)
+        .map(transformSpotifyTrack);
+    }
   },
 
   // Get available genres
