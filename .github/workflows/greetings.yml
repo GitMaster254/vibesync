@@ -1,6 +1,10 @@
-name: Greetings
+name: 👋 Greetings
 
-on: [pull_request_target, issues]
+on:
+  pull_request_target:
+  issues:
+  create:
+    types: [created]
 
 jobs:
   greeting:
@@ -10,41 +14,39 @@ jobs:
       pull-requests: write
 
     steps:
-      - name: Greet first-time contributors
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const issue = context.payload.issue;
-            const pr = context.payload.pull_request;
-            const sender = context.payload.sender.login;
+    - name: 💬 Greet on First Interaction
+      uses: actions/first-interaction@v1
+      with:
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        issue-message: |
+          Hey @${{ github.actor }}! 🎉  
+          Thanks for opening your first issue here — we appreciate your curiosity and contribution!  
+          Our team will take a look soon. Meanwhile, feel free to explore the repo and share ideas 🚀
+        pr-message: |
+          Yo @${{ github.actor }}! 👏  
+          Thanks for submitting your first pull request!  
+          You’re officially part of the builders’ squad 💪  
+          Sit tight — your contribution will be reviewed shortly. Keep that creative code energy flowing! ⚡
 
-            // Check if it's an issue
-            if (issue) {
-              const { data: userIssues } = await github.rest.search.issuesAndPullRequests({
-                q: `repo:${context.repo.owner}/${context.repo.repo} author:${sender} is:issue`
-              });
-              if (userIssues.total_count === 1) {
-                await github.rest.issues.createComment({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: issue.number,
-                  body: `👋 Hi @${sender}! Thanks for opening your first issue! 🎉\nWe appreciate your contribution and will review it soon.`
-                });
-              }
-            }
+  branch-greeting:
+    if: github.event_name == 'create' && startsWith(github.ref, 'refs/heads/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
 
-            // Check if it's a pull request
-            if (pr) {
-              const { data: userPRs } = await github.rest.search.issuesAndPullRequests({
-                q: `repo:${context.repo.owner}/${context.repo.repo} author:${sender} is:pr`
-              });
-              if (userPRs.total_count === 1) {
-                await github.rest.issues.createComment({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: pr.number,
-                  body: `🚀 Hey @${sender}! Thanks for submitting your first pull request! 🥳\nA maintainer will review it shortly. Welcome aboard!`
-                });
-              }
-            }
+    steps:
+    - name: 🌱 Greet on New Branch Creation
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        ACTOR: ${{ github.actor }}
+        BRANCH_NAME: ${{ github.ref_name }}
+        REPO: ${{ github.repository }}
+      run: |
+        echo "Branch '${BRANCH_NAME}' created by @${ACTOR}"
+
+        # Post a comment in the repo’s default issue discussions (creates a new issue comment)
+        gh api repos/${REPO}/issues --method POST -f title="🎋 New Branch Alert: ${BRANCH_NAME}" -f body="Hey @${ACTOR}! 🌿 You just sprouted a new branch called **${BRANCH_NAME}** — awesome! 🚀  
+        Time to make something epic. Once it’s ready, open a PR and let the magic happen ✨" || echo "⚠️ Could not create issue comment."
+
+      shell: bash
