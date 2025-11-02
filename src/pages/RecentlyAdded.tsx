@@ -72,9 +72,9 @@ export default function RecentlyAdded() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex items-center gap-3">
-            <div className="rounded-xl bg-gradient-to-br from-teal-500 to-green-600 p-3">
+            {/* <div className="rounded-xl bg-gradient-to-br from-teal-500 to-green-600 p-3">
               <Plus className="h-8 w-8 text-white" />
-            </div>
+            </div> */}
             <div>
               <h1 className="text-2xl font-bold">Recently Added</h1>
               <p className="text-sm text-muted-foreground">{tracks.length} tracks</p>
