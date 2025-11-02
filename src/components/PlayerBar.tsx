@@ -10,22 +10,77 @@ import { vibrate } from '@/lib/haptics';
  * Mini player bar - always visible at bottom of screen
  * Expands to full player on click
  */
-export function PlayerBar() {
+export function PlayerBar({ sidebarOpen, isDesktop }) {
   const navigate = useNavigate();
-  const { currentTrack, isPlaying, setIsPlaying, nextTrack, previousTrack } = usePlayerStore();
+  const { currentTrack, isPlaying, setIsPlaying, nextTrack, previousTrack, currentTime, duration } = usePlayerStore();
 
   if (!currentTrack) return null;
 
   const handlePlayerClick = () => {
     navigate('/player');
   };
+  // Calculate progress percentage
+  const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+  /**
+ * Circular progress component for play button
+ */
+function CircularProgress({ progress, size = 40 }: { progress: number; size?: number }) {
+  const radius = (size - 4) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (progress / 100) * circumference;
+
+  return (
+    <svg
+      className="absolute inset-0 -rotate-90"
+      width={size}
+      height={size}
+    >
+      {/* Background circle */}
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        stroke="currentColor"
+        strokeWidth="2"
+        fill="none"
+        className="text-muted-foreground/20"
+      />
+      {/* Progress circle */}
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        stroke="currentColor"
+        strokeWidth="2"
+        fill="none"
+        strokeDasharray={circumference}
+        strokeDashoffset={offset}
+        strokeLinecap="round"
+        className="text-primary transition-all duration-300 ease-linear"
+      />
+    </svg>
+  );
+}
 
   return (
     <motion.div
       initial={{ y: 24, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-  transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-      className="fixed bottom-16 left-0 right-0 z-30 border-t border-border bg-card/95 backdrop-blur-lg"
+      transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+      className={cn(
+        "fixed left-0 right-0 z-30 border-t border-border bg-card/95 backdrop-blur-lg",
+        // Mobile: above bottom nav (64px from bottom)
+        // Desktop: at the very bottom, adjusting for sidebar
+        isDesktop 
+          ? "bottom-0" 
+          : "bottom-16"
+      )}
+      style={{
+        // On desktop, adjust left margin based on sidebar state
+        ...(isDesktop && {
+          left: sidebarOpen ? '16rem' : '5rem' // 256px (w-64) or 80px (w-20)
+        })
+      }}
     >
       <motion.div
         whileTap={{ scale: 0.98 }}
@@ -77,22 +132,25 @@ export function PlayerBar() {
             <SkipBack className="h-4 w-4" />
           </Button>
           
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => { vibrate(10); setIsPlaying(!isPlaying); }}
-            className={cn(
-              'h-10 w-10 rounded-full',
-              isPlaying && 'bg-primary text-primary-foreground hover:bg-primary/90'
-            )}
-          >
-            {isPlaying ? (
-              <Pause className="h-5 w-5" />
-            ) : (
-              <Play className="h-5 w-5 ml-0.5" />
-            )}
-          </Button>
-          
+
+          {/* Play/Pause button with circular progress */}
+          <div className="relative h-10 w-10">
+             <CircularProgress progress={progress} size={40} />
+               <Button
+                 variant="ghost"
+                 size="icon"
+                 onClick={() => { vibrate(10); setIsPlaying(!isPlaying); }}
+                 className={cn(
+                 'absolute inset-0 h-10 w-10 rounded-full'
+               )}
+                 >
+                {isPlaying ? (
+                 <Pause className="h-5 w-5" />
+              ) : (
+               <Play className="h-5 w-5 ml-0.5" />
+             )}
+             </Button>
+          </div>
           <Button
             variant="ghost"
             size="icon"

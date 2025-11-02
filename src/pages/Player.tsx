@@ -147,6 +147,16 @@ export default function Player() {
     }
   }, [currentTrack, navigate]);
 
+  useEffect(() => {
+  if (showSpeakerTip) {
+    const timer = setTimeout(() => {
+      setShowSpeakerTip(false);
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }
+}, [showSpeakerTip]);
+
   // Karaoke play button handler
   const handleKaraokePlay = async () => {
     setShowCountdown(true);
@@ -222,7 +232,7 @@ export default function Player() {
           {/* Karaoke Header */}
           <div className="flex items-center justify-between p-6">
             <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-pink-500 to-purple-500 bg-clip-text text-transparent">
-              🎤 Karaoke Mode
+            Karaoke Mode
             </h1>
             <Button
               variant="ghost"
@@ -269,26 +279,11 @@ export default function Player() {
                 <div className="text-2xl font-bold text-primary mb-4">
                   {currentTrack.title}
                 </div>
-                <div className="text-lg text-muted-foreground mb-4">
-                  {currentTrack.artist}
-                </div>
                 <div className="space-y-4 mt-8">
-                  <p className="text-2xl leading-relaxed opacity-50 animate-pulse">
-                    [Instrumental]
-                  </p>
                   <p className="text-3xl leading-relaxed font-medium">
                     Sing along with the music...
                   </p>
-                  <p className="text-2xl leading-relaxed opacity-75">
-                    🎵 Feel the rhythm 🎵
-                  </p>
-                  <p className="text-2xl leading-relaxed opacity-50 animate-pulse">
-                    [Music continues]
-                  </p>
                 </div>
-                <p className="text-sm text-muted-foreground mt-12">
-                  💡 Lyrics sync coming soon! For now, feel the rhythm and sing your heart out! 🎵
-                </p>
               </div>
             </div>
 
@@ -507,9 +502,10 @@ export default function Player() {
             transition={{ delay: 0.4 }}
             className="px-8 pb-8"
           >
-            {/* Playback modes */}
-            <div className="mb-6 flex items-center justify-center gap-8">
-              <Button
+
+            {/* Main controls */}
+            <div className="flex items-center justify-center gap-4">
+                <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => { vibrate(8); toggleShuffle(); }}
@@ -517,19 +513,6 @@ export default function Player() {
               >
                 <Shuffle className="h-5 w-5" />
               </Button>
-              
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => { vibrate(8); cycleRepeat(); }}
-                className={cn(repeat !== 'none' && 'text-primary')}
-              >
-                <RepeatIcon className="h-5 w-5" />
-              </Button>
-            </div>
-
-            {/* Main controls */}
-            <div className="flex items-center justify-center gap-4">
               <Button
                 variant="ghost"
                 size="icon"
@@ -559,6 +542,14 @@ export default function Player() {
                 className="h-12 w-12"
               >
                 <SkipForward className="h-6 w-6" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => { vibrate(8); cycleRepeat(); }}
+                className={cn(repeat !== 'none' && 'text-primary')}
+              >
+                <RepeatIcon className="h-5 w-5" />
               </Button>
             </div>
           </motion.div>
