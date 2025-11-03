@@ -1,6 +1,6 @@
-// lib/spotify-proxy.ts
-
-const PROXY_BASE_URL = import.meta.env.VITE_PROXY_URL || 'http://localhost:3001';
+// jamendoProxy.ts
+const JAMENDO_BASE_URL = 'https://api.jamendo.com/v3.0/';
+const CLIENT_ID = 'c760f716';
 
 export interface ExplorerTrack {
   id: string;
@@ -19,50 +19,131 @@ export interface Genre {
   cover?: string;
 }
 
-async function proxyFetch(endpoint: string, options?: RequestInit) {
-  const response = await fetch(`${PROXY_BASE_URL}${endpoint}`, options);
-  
+async function jamendoFetch(endpoint: string, params: Record<string, string> = {}) {
+  const url = new URL(`${JAMENDO_BASE_URL}${endpoint}`);
+  url.searchParams.set('client_id', CLIENT_ID);
+  url.searchParams.set('format', 'json');
+  Object.entries(params).forEach(([key, value]) => {
+    url.searchParams.set(key, value);
+  });
+
+  const response = await fetch(url.toString());
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Proxy API error: ${response.status} - ${error}`);
+    const text = await response.text();
+    throw new Error(`Jamendo API error: ${response.status} - ${text}`);
   }
-  
-  return response.json();
+
+  const json = await response.json();
+  return json;
 }
 
 export const spotifyProxy = {
-  // Get featured tracks
   async getFeaturedTracks(limit: number = 50): Promise<ExplorerTrack[]> {
-    return proxyFetch(`/api/featured-tracks?limit=${limit}`);
+    const data = await jamendoFetch('tracks', {
+      limit: limit.toString(),
+      order: 'popularity_total',
+      include: 'musicinfo',
+    });
+
+    const results = data.results ?? [];
+    return results.map((track: any) => ({
+      id: String(track.id),
+      title: track.name,
+      artist: track.artist_name,
+      album: track.album_name,
+      coverArt: track.image || track.album_image || undefined,
+      previewUrl: track.audiodownload_allowed ? track.audiodownload : track.audio,
+      duration: track.duration,
+      externalUrl: track.shareurl || track.url,
+    }));
   },
 
-  // Get available genres
   async getGenres(): Promise<Genre[]> {
-    return proxyFetch('/api/genres');
+    return [
+      { id: 'rock', name: 'Rock' },
+      { id: 'electronic', name: 'Electronic' },
+      { id: 'pop', name: 'Pop' },
+      { id: 'hiphop', name: 'Hip Hop' },
+      { id: 'jazz', name: 'Jazz' },
+      { id: 'classical', name: 'Classical' },
+      { id: 'folk', name: 'Folk' },
+      { id: 'reggae', name: 'Reggae' },
+      { id: 'blues', name: 'Blues' },
+      { id: 'country', name: 'Country' },
+    ];
   },
 
-  // Get recommendations by genre
   async getGenreTracks(genreId: string, limit: number = 20): Promise<ExplorerTrack[]> {
-    return proxyFetch(`/api/genre-tracks?genre=${genreId}&limit=${limit}`);
+    const data = await jamendoFetch('tracks', {
+      tags: genreId,
+      limit: limit.toString(),
+      order: 'popularity_total',
+      include: 'musicinfo',
+    });
+
+    const results = data.results ?? [];
+    return results.map((track: any) => ({
+      id: String(track.id),
+      title: track.name,
+      artist: track.artist_name,
+      album: track.album_name,
+      coverArt: track.image || track.album_image,
+      previewUrl: track.audiodownload_allowed ? track.audiodownload : track.audio,
+      duration: track.duration,
+      externalUrl: track.shareurl,
+    }));
   },
 
-  // Search tracks
   async searchTracks(query: string, limit: number = 20): Promise<ExplorerTrack[]> {
-    return proxyFetch(`/api/search?q=${encodeURIComponent(query)}&limit=${limit}`);
+    const data = await jamendoFetch('tracks', {
+      search: query,
+      limit: limit.toString(),
+      include: 'musicinfo',
+    });
+
+    const results = data.results ?? [];
+    return results.map((track: any) => ({
+      id: String(track.id),
+      title: track.name,
+      artist: track.artist_name,
+      album: track.album_name,
+      coverArt: track.image || track.album_image,
+      previewUrl: track.audiodownload_allowed ? track.audiodownload : track.audio,
+      duration: track.duration,
+      externalUrl: track.shareurl,
+    }));
   },
 
-  // Get new releases
-  async getNewReleases(limit: number = 20): Promise<any[]> {
-    return proxyFetch(`/api/new-releases?limit=${limit}`);
+  async getNewReleases(limit: number = 20): Promise<ExplorerTrack[]> {
+    const data = await jamendoFetch('tracks', {
+      limit: limit.toString(),
+      order: 'releasedate_desc',
+      include: 'musicinfo',
+    });
+
+    const results = data.results ?? [];
+    return results.map((track: any) => ({
+      id: String(track.id),
+      title: track.name,
+      artist: track.artist_name,
+      album: track.album_name,
+      coverArt: track.image || track.album_image,
+      previewUrl: track.audiodownload_allowed ? track.audiodownload : track.audio,
+      duration: track.duration,
+      externalUrl: track.shareurl,
+    }));
   },
 
-  // Health check
   async healthCheck(): Promise<{ status: string; message: string }> {
-    return proxyFetch('/health');
-  }
+    try {
+      await jamendoFetch('tracks', { limit: '1' });
+      return { status: 'ok', message: 'Jamendo API is accessible' };
+    } catch (err: any) {
+      return { status: 'error', message: `Jamendo API error: ${err.message ?? err}` };
+    }
+  },
 };
 
-// Utility function to check if proxy is configured
 export function isProxyConfigured(): boolean {
-  return !!PROXY_BASE_URL;
+  return Boolean(CLIENT_ID);
 }

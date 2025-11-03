@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Zap, Search, Music, Filter, ChevronRight, X, AlertCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -10,143 +10,143 @@ import { toast } from "sonner";
 import { usePlayerStore } from "@/store/usePlayerStore";
 import { spotifyProxy, isProxyConfigured, ExplorerTrack, Genre } from "@/lib/spotify-proxy";
 
-export default function Explorer() {
+export default function Explorer(): JSX.Element {
   const [tab, setTab] = useState<"charts" | "genres" | "search">("charts");
   const [tracks, setTracks] = useState<ExplorerTrack[]>([]);
   const [genres, setGenres] = useState<Genre[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [loading, setLoading] = useState(true);
   const [genreTracks, setGenreTracks] = useState<ExplorerTrack[]>([]);
   const [selectedGenre, setSelectedGenre] = useState<Genre | null>(null);
-  const [searchResults, setSearchResults] = useState<ExplorerTrack[]>([]);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const playTrack = usePlayerStore((s) => s.playTrack);
 
-  // Check if Spotify is configured
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<ExplorerTrack[]>([]);
+
+  const [loading, setLoading] = useState(true);
+  const [searchLoading, setSearchLoading] = useState(false);
+
+  const playTrack = usePlayerStore((s) => s.playTrack);
   const spotifyConfigured = isProxyConfigured();
 
-  // Fetch featured tracks (as charts)
-  const fetchCharts = useCallback(async () => {
+  const isMountedRef = useRef<boolean>(false);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  // --- fetch functions (no AbortSignal passed)
+  const fetchCharts = useCallback(async (): Promise<void> => {
     if (!spotifyConfigured) {
-      setLoading(false);
+      if (isMountedRef.current) setLoading(false);
       return;
     }
-
     try {
-      setLoading(true);
+      if (isMountedRef.current) setLoading(true);
       const featuredTracks = await spotifyProxy.getFeaturedTracks(50);
-      setTracks(featuredTracks);
-    } catch (error) {
+      // defensive: ensure we set an array
+      if (isMountedRef.current) setTracks(Array.isArray(featuredTracks) ? featuredTracks : []);
+    } catch (error: any) {
       console.error("Charts fetch error:", error);
       toast.error("Couldn't load featured tracks");
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) setLoading(false);
     }
-  }, []);
+  }, [spotifyConfigured]);
 
-  // Fetch genres
-  const fetchGenres = useCallback(async () => {
+  const fetchGenres = useCallback(async (): Promise<void> => {
     if (!spotifyConfigured) return;
-
     try {
       const genreList = await spotifyProxy.getGenres();
-      setGenres(genreList);
-    } catch (error) {
+      if (isMountedRef.current) setGenres(Array.isArray(genreList) ? genreList : []);
+    } catch (error: any) {
       console.error("Genres fetch error:", error);
       toast.error("Couldn't load genres");
     }
-  }, []);
+  }, [spotifyConfigured]);
 
-  // Fetch tracks by genre
-  const fetchGenreTracks = useCallback(async (genreId: string) => {
+  const fetchGenreTracks = useCallback(async (genreId: string): Promise<void> => {
     if (!spotifyConfigured) return;
-
     try {
-      setLoading(true);
+      if (isMountedRef.current) setLoading(true);
       const genreTracksData = await spotifyProxy.getGenreTracks(genreId, 20);
-      setGenreTracks(genreTracksData);
-      setSelectedGenre(genres.find(g => g.id === genreId) || null);
-    } catch (error) {
+      if (isMountedRef.current) {
+        setGenreTracks(Array.isArray(genreTracksData) ? genreTracksData : []);
+        // set selected genre defensively: find might return undefined -> null
+        setSelectedGenre((prev) => prev ?? (genres.find((g) => g.id === genreId) ?? null));
+      }
+    } catch (error: any) {
       console.error("Genre tracks fetch error:", error);
       toast.error("Couldn't load tracks for this genre");
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) setLoading(false);
     }
-  }, [genres]);
+  }, [genres, spotifyConfigured]);
 
-  // Search tracks with debouncing
+  // initial load
+  useEffect(() => {
+    // keep simple; fire and forget
+    void fetchGenres();
+    void fetchCharts();
+  }, [fetchGenres, fetchCharts]);
+
+  // search debounce (no signal)
   useEffect(() => {
     if (!searchQuery.trim() || !spotifyConfigured) {
       setSearchResults([]);
+      setSearchLoading(false);
       return;
     }
-
-    const timeoutId = setTimeout(async () => {
-      setSearchLoading(true);
+    const handler = setTimeout(async () => {
       try {
-        const results = await spotifyProxy.searchTracks(searchQuery, 20);
-        setSearchResults(results);
-      } catch (error) {
+        if (isMountedRef.current) setSearchLoading(true);
+        const results = await spotifyProxy.searchTracks(searchQuery.trim(), 20);
+        if (isMountedRef.current) setSearchResults(Array.isArray(results) ? results : []);
+      } catch (error: any) {
         console.error("Search error:", error);
         toast.error("Search failed");
-        setSearchResults([]);
+        if (isMountedRef.current) setSearchResults([]);
       } finally {
-        setSearchLoading(false);
+        if (isMountedRef.current) setSearchLoading(false);
       }
     }, 500);
 
-    return () => clearTimeout(timeoutId);
-  }, [searchQuery]);
+    return () => clearTimeout(handler);
+  }, [searchQuery, spotifyConfigured]);
 
-  useEffect(() => {
-    fetchGenres();
-    fetchCharts();
-  }, [fetchCharts, fetchGenres]);
-
-  const handlePlay = (track: ExplorerTrack) => {
-    const playerTrack = {
-      ...track,
-      fileUrl: track.previewUrl || "",
-      blob: undefined,
-    } as any;
+  const handlePlay = useCallback((track: ExplorerTrack): void => {
+    const playerTrack = { ...track, fileUrl: (track as any).previewUrl ?? "", blob: undefined } as any;
     playTrack(playerTrack, [playerTrack]);
-  };
+  }, [playTrack]);
 
-  const handleGenreClick = (genre: Genre) => {
+  const handleGenreClick = useCallback((genre: Genre): void => {
     setTab("genres");
-    fetchGenreTracks(genre.id);
-  };
+    setSelectedGenre(genre);
+    void fetchGenreTracks(genre.id);
+  }, [fetchGenreTracks]);
 
-  // Configuration warning
+  const emptyCharts = !loading && tracks.length === 0;
+  const emptyGenres = !loading && genres.length === 0;
+
   if (!spotifyConfigured) {
     return (
       <div className="min-h-screen pb-40 pt-4 bg-background">
         <div className="container mx-auto max-w-2xl px-4">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-6"
-          >
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
             <h1 className="text-3xl font-bold mb-2">Explorer</h1>
             <p className="text-muted-foreground">Discover new music from Spotify</p>
           </motion.div>
-
           <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed border-muted rounded-lg">
             <AlertCircle className="h-16 w-16 text-yellow-500 mb-4" />
             <h3 className="text-lg font-semibold mb-2">Spotify Not Configured</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Please add your Spotify Client ID and Secret to enable music exploration.
-            </p>
-            <Badge variant="outline" className="text-xs">
-              Check your .env file for VITE_SPOTIFY_CLIENT_ID and VITE_SPOTIFY_CLIENT_SECRET
-            </Badge>
+            <p className="text-sm text-muted-foreground mb-4">Please add your Spotify Client ID and Secret to enable music exploration.</p>
+            <Badge variant="outline" className="text-xs">VITE_SPOTIFY_CLIENT_ID and VITE_SPOTIFY_CLIENT_SECRET</Badge>
           </div>
         </div>
       </div>
     );
   }
 
-  if (loading && tracks.length === 0) {
+  if (loading && tracks.length === 0 && genres.length === 0) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
@@ -160,39 +160,20 @@ export default function Explorer() {
   return (
     <div className="min-h-screen pb-40 pt-4 bg-background">
       <div className="container mx-auto max-w-2xl px-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-6"
-        >
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
           <h1 className="text-3xl font-bold mb-2">Explorer</h1>
           <p className="text-muted-foreground">Discover new music from Spotify</p>
         </motion.div>
-
-        <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="w-full">
+        <Tabs value={tab} onValueChange={(v: string) => setTab(v as "charts" | "genres" | "search")} className="w-full">
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="charts">
-              <Zap className="mr-2 h-4 w-4" />
-              Featured
-            </TabsTrigger>
-            <TabsTrigger value="genres">
-              <Filter className="mr-2 h-4 w-4" />
-              Genres
-            </TabsTrigger>
-            <TabsTrigger value="search">
-              <Search className="mr-2 h-4 w-4" />
-              Search
-            </TabsTrigger>
+            <TabsTrigger value="charts"><Zap className="mr-2 h-4 w-4" />Featured</TabsTrigger>
+            <TabsTrigger value="genres"><Filter className="mr-2 h-4 w-4" />Genres</TabsTrigger>
+            <TabsTrigger value="search"><Search className="mr-2 h-4 w-4" />Search</TabsTrigger>
           </TabsList>
 
-          {/* Charts Tab */}
           <TabsContent value="charts" className="mt-4">
-            {tracks.length === 0 ? (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="flex flex-col items-center justify-center py-12 text-center"
-              >
+            {emptyCharts ? (
+              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center justify-center py-12 text-center">
                 <Music className="h-16 w-16 text-muted-foreground mb-4" />
                 <h3 className="text-lg font-semibold mb-2">No featured tracks available</h3>
                 <p className="text-sm text-muted-foreground">Pull to refresh or try another tab</p>
@@ -200,175 +181,88 @@ export default function Explorer() {
             ) : (
               <div className="space-y-3">
                 {tracks.map((track, index) => (
-                  <motion.div
-                    key={track.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                  >
-                    <TrackCard
-                      track={track as any}
-                      tracks={tracks as any[]}
-                      onPlay={() => handlePlay(track)}
-                    />
+                  <motion.div key={track.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.05 }}>
+                    <TrackCard track={track as any} tracks={tracks as any[]} onPlay={() => handlePlay(track)} />
                   </motion.div>
                 ))}
                 <div className="text-center">
-                  <Badge variant="outline" className="mt-4">
-                    Powered by Spotify • 30s previews
-                  </Badge>
+                  <Badge variant="outline" className="mt-4">Powered by Spotify • Full tracks</Badge>
                 </div>
               </div>
             )}
           </TabsContent>
 
-          {/* Genres Tab */}
           <TabsContent value="genres" className="mt-4">
             <AnimatePresence mode="wait">
               {selectedGenre ? (
-                <motion.div
-                  key="genre-tracks"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  className="space-y-4"
-                >
+                <motion.div key="genre-tracks" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-4">
                   <div className="flex items-center gap-3 mb-4">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        setSelectedGenre(null);
-                        setGenreTracks([]);
-                      }}
-                    >
+                    <Button variant="ghost" size="icon" onClick={() => { setSelectedGenre(null); setGenreTracks([]); }}>
                       <ChevronRight className="h-5 w-5 rotate-180" />
                     </Button>
                     <div>
-                      <h2 className="text-xl font-bold">{selectedGenre.name}</h2>
+                      {/* defensive access to name */}
+                      <h2 className="text-xl font-bold">{selectedGenre?.name ?? "Genre"}</h2>
                       <p className="text-sm text-muted-foreground">Recommended tracks</p>
                     </div>
                   </div>
                   <div className="space-y-3">
                     {genreTracks.map((track, index) => (
-                      <motion.div
-                        key={track.id}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.05 }}
-                      >
-                        <TrackCard
-                          track={track as any}
-                          tracks={genreTracks as any[]}
-                          onPlay={() => handlePlay(track)}
-                        />
+                      <motion.div key={track.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.05 }}>
+                        <TrackCard track={track as any} tracks={genreTracks as any[]} onPlay={() => handlePlay(track)} />
                       </motion.div>
                     ))}
                   </div>
                 </motion.div>
               ) : (
-                <motion.div
-                  key="genres-grid"
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="grid grid-cols-2 sm:grid-cols-3 gap-3"
-                >
-                  {genres.map((genre) => (
-                    <motion.div
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.98 }}
-                      key={genre.id}
-                      className="group relative aspect-square rounded-xl overflow-hidden bg-gradient-to-br from-muted to-muted-foreground/10 cursor-pointer"
-                      onClick={() => handleGenreClick(genre)}
-                    >
-                      {genre.cover ? (
-                        <img
-                          src={genre.cover}
-                          alt={genre.name}
-                          className="h-full w-full object-cover group-hover:scale-110 transition-transform"
-                        />
-                      ) : (
-                        <div className="h-full w-full bg-gradient-primary flex items-center justify-center">
-                          <Music className="h-8 w-8 text-white/70" />
-                        </div>
-                      )}
-                      <div className="absolute inset-0 bg-black/20 group-hover:bg-black/30 transition-all" />
-                      <div className="absolute bottom-2 left-2 right-2">
-                        <h3 className="text-white font-semibold truncate">{genre.name}</h3>
-                      </div>
-                    </motion.div>
-                  ))}
+                <motion.div key="genres-grid" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {emptyGenres ? (
+                    <div className="col-span-2 text-center py-8">
+                      <Music className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+                      <p className="text-sm text-muted-foreground">No genres available</p>
+                    </div>
+                  ) : (
+                    genres.map((genre) => (
+                      <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }} key={genre.id} className="group relative aspect-square rounded-xl overflow-hidden bg-gradient-to-br from-muted to-muted-foreground/10 cursor-pointer" onClick={() => handleGenreClick(genre)}>
+                        {genre.cover ? <img src={genre.cover} alt={genre.name} className="h-full w-full object-cover group-hover:scale-110 transition-transform" /> : <div className="h-full w-full bg-gradient-primary flex items-center justify-center"><Music className="h-8 w-8 text-white/70" /></div>}
+                        <div className="absolute inset-0 bg-black/20 group-hover:bg-black/30 transition-all" />
+                        <div className="absolute bottom-2 left-2 right-2"><h3 className="text-white font-semibold truncate">{genre.name}</h3></div>
+                      </motion.div>
+                    ))
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>
           </TabsContent>
 
-          {/* Search Tab */}
           <TabsContent value="search" className="mt-4">
             <div className="relative mb-4">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search artists, tracks, or albums..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
-              />
-              {searchQuery && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
-                  onClick={() => setSearchQuery("")}
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              )}
+              <Input placeholder="Search artists, tracks, or albums..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9" />
+              {searchQuery && <Button variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6" onClick={() => { setSearchQuery(""); setSearchResults([]); }}><X className="h-3 w-3" /></Button>}
             </div>
 
             {searchLoading ? (
-              <div className="flex justify-center py-8">
-                <Zap className="h-6 w-6 animate-spin text-primary" />
-              </div>
+              <div className="flex justify-center py-8"><Zap className="h-6 w-6 animate-spin text-primary" /></div>
             ) : searchResults.length === 0 && searchQuery ? (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="flex flex-col items-center justify-center py-12 text-center"
-              >
+              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center justify-center py-12 text-center">
                 <Search className="h-16 w-16 text-muted-foreground mb-4" />
                 <h3 className="text-lg font-semibold mb-2">No results found</h3>
-                <p className="text-sm text-muted-foreground">
-                  Try different keywords or check spelling
-                </p>
+                <p className="text-sm text-muted-foreground">Try different keywords or check spelling</p>
               </motion.div>
             ) : searchResults.length > 0 ? (
               <div className="space-y-3">
                 {searchResults.map((track, index) => (
-                  <motion.div
-                    key={track.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                  >
-                    <TrackCard
-                      track={track as any}
-                      tracks={searchResults as any[]}
-                      onPlay={() => handlePlay(track)}
-                    />
+                  <motion.div key={track.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.05 }}>
+                    <TrackCard track={track as any} tracks={searchResults as any[]} onPlay={() => handlePlay(track)} />
                   </motion.div>
                 ))}
               </div>
             ) : (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="flex flex-col items-center justify-center py-12 text-center"
-              >
+              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center justify-center py-12 text-center">
                 <Search className="h-16 w-16 text-muted-foreground mb-4" />
                 <h3 className="text-lg font-semibold mb-2">Search Spotify</h3>
-                <p className="text-sm text-muted-foreground">
-                  Find your favorite artists and tracks
-                </p>
+                <p className="text-sm text-muted-foreground">Find your favorite artists and tracks</p>
               </motion.div>
             )}
           </TabsContent>
