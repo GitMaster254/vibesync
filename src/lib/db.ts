@@ -21,6 +21,8 @@ export type Track = {
   codec?: string;
   favorite: boolean;
   addedAt: Date;
+  lastPlayed?: number;
+  playCount?: number;
 };
 
 export interface Playlist {
