@@ -43,6 +43,8 @@ export const spotifyProxy = {
       limit: limit.toString(),
       order: 'popularity_total',
       include: 'musicinfo',
+      // Prioritize African content in featured tracks
+      geotags: 'africa,kenya,nigeria,south africa,ghana,uganda,tanzania',
     });
 
     const results = data.results ?? [];
@@ -70,6 +72,12 @@ export const spotifyProxy = {
       { id: 'reggae', name: 'Reggae' },
       { id: 'blues', name: 'Blues' },
       { id: 'country', name: 'Country' },
+      { id: 'afrobeat', name: 'Afrobeat' },
+      { id: 'highlife', name: 'Highlife' },
+      { id: 'kwaito', name: 'Kwaito' },
+      { id: 'african', name: 'African' },
+      { id: 'world', name: 'World Music' },
+      { id: 'traditional', name: 'Traditional' },
     ];
   },
 
@@ -99,6 +107,8 @@ export const spotifyProxy = {
       search: query,
       limit: limit.toString(),
       include: 'musicinfo',
+      // Add location-based search for African content
+      geotags: 'africa,kenya,nigeria,south africa,ghana,uganda,tanzania',
     });
 
     const results = data.results ?? [];

@@ -17,7 +17,7 @@ let globalAnalyser: AnalyserNode | null = null;
 function getAudioInstance(): HTMLAudioElement {
   if (!globalAudioInstance) {
     globalAudioInstance = new Audio();
-    globalAudioInstance.preload = 'metadata';
+    globalAudioInstance.preload = 'auto'; // Changed from 'metadata' to 'auto' for faster loading
   }
   return globalAudioInstance;
 }
@@ -201,6 +201,20 @@ export function useAudioPlayer() {
      // Load the new source and wait for it to be ready
      const handleCanPlay = () => {
        audio.removeEventListener('canplay', handleCanPlay);
+       audio.removeEventListener('canplaythrough', handleCanPlayThrough);
+       const shouldAutoPlay = usePlayerStore.getState().isPlaying;
+       if (shouldAutoPlay) {
+         audio.play().catch(err => {
+           console.error('Playback failed:', err);
+           setIsPlaying(false);
+         });
+       }
+     };
+
+     // Also listen for canplaythrough for even better readiness
+     const handleCanPlayThrough = () => {
+       audio.removeEventListener('canplay', handleCanPlay);
+       audio.removeEventListener('canplaythrough', handleCanPlayThrough);
        const shouldAutoPlay = usePlayerStore.getState().isPlaying;
        if (shouldAutoPlay) {
          audio.play().catch(err => {
@@ -212,12 +226,14 @@ export function useAudioPlayer() {
 
      const handleError = () => {
        audio.removeEventListener('canplay', handleCanPlay);
+       audio.removeEventListener('canplaythrough', handleCanPlayThrough);
        audio.removeEventListener('error', handleError);
        console.error('Failed to load audio source');
        setIsPlaying(false);
      };
 
      audio.addEventListener('canplay', handleCanPlay);
+     audio.addEventListener('canplaythrough', handleCanPlayThrough);
      audio.addEventListener('error', handleError);
 
      try {
@@ -269,6 +285,9 @@ useEffect(() => {
     // Restore currentTime from store to ensure continuity
     const currentTime = usePlayerStore.getState().currentTime || 0;
     audio.currentTime = currentTime;
+
+    // Ensure volume is set before playing
+    audio.volume = usePlayerStore.getState().volume;
 
     audio.play().then(() => {
       const st = usePlayerStore.getState();
