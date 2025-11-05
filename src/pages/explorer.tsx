@@ -133,7 +133,7 @@ export default function Explorer(): JSX.Element {
         <div className="container mx-auto max-w-2xl px-4">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
             <h1 className="text-3xl font-bold mb-2">Explorer</h1>
-            <p className="text-muted-foreground">Discover new music from Spotify</p>
+            <p className="text-muted-foreground">Discover new music from Jamendo</p>
           </motion.div>
           <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed border-muted rounded-lg">
             <AlertCircle className="h-16 w-16 text-yellow-500 mb-4" />
@@ -162,7 +162,7 @@ export default function Explorer(): JSX.Element {
       <div className="container mx-auto max-w-2xl px-4">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
           <h1 className="text-3xl font-bold mb-2">Explorer</h1>
-          <p className="text-muted-foreground">Discover new music from Spotify</p>
+          <p className="text-muted-foreground">Discover new music from Jamendo</p>
         </motion.div>
         <Tabs value={tab} onValueChange={(v: string) => setTab(v as "charts" | "genres" | "search")} className="w-full">
           <TabsList className="grid w-full grid-cols-3">
@@ -186,7 +186,7 @@ export default function Explorer(): JSX.Element {
                   </motion.div>
                 ))}
                 <div className="text-center">
-                  <Badge variant="outline" className="mt-4">Powered by Spotify • Full tracks</Badge>
+                  <Badge variant="outline" className="mt-4">Powered by Jamendo • Full tracks</Badge>
                 </div>
               </div>
             )}
@@ -261,7 +261,7 @@ export default function Explorer(): JSX.Element {
             ) : (
               <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center justify-center py-12 text-center">
                 <Search className="h-16 w-16 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Search Spotify</h3>
+                <h3 className="text-lg font-semibold mb-2">Search Jamendo</h3>
                 <p className="text-sm text-muted-foreground">Find your favorite artists and tracks</p>
               </motion.div>
             )}
