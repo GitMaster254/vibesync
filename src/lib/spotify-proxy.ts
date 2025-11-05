@@ -94,7 +94,7 @@ export const spotifyProxy = {
     }));
   },
 
-  async searchTracks(query: string, limit: number = 20): Promise<ExplorerTrack[]> {
+  async searchTracks(query: string, limit: number = 50): Promise<ExplorerTrack[]> {
     const data = await jamendoFetch('tracks', {
       search: query,
       limit: limit.toString(),

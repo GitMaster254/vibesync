@@ -35,7 +35,7 @@ export default function Search() {
 
   const filteredTracks = React.useMemo(() => {
     if (!q) return tracks.slice(0, 20);
-    return tracks.filter((t) => match(t.title) || match(t.artist) || match(t.album)).slice(0, 50);
+    return tracks.filter((t) => match(t.title) || match(t.artist) || match(t.album) || match(t.genre)).slice(0, 50);
   }, [tracks, q, match]);
 
   const filteredPlaylists = React.useMemo(() => {
@@ -90,7 +90,7 @@ export default function Search() {
                       {filteredTracks.map((t) => (
                         <CommandItem
                           key={t.id}
-                          value={`track:${t.title} ${t.artist ?? ''} ${t.album ?? ''}`}
+                          value={`track:${t.title} ${t.artist ?? ''} ${t.album ?? ''} ${t.genre ?? ''}`}
                           onSelect={() => handleSelectTrack(t)}
                         >
                           <div className="flex min-w-0 flex-col">
@@ -131,7 +131,7 @@ export default function Search() {
                       {filteredTracks.map((t) => (
                         <CommandItem
                           key={t.id}
-                          value={`track:${t.title} ${t.artist ?? ''} ${t.album ?? ''}`}
+                          value={`track:${t.title} ${t.artist ?? ''} ${t.album ?? ''} ${t.genre ?? ''}`}
                           onSelect={() => handleSelectTrack(t)}
                         >
                           <div className="flex min-w-0 flex-col">

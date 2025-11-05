@@ -167,71 +167,94 @@ export function useAudioPlayer() {
   }, [nextTrack, setDuration, setCurrentTime, setIsPlaying]);
 
   // Handle track changes
-useEffect(() => {
-  if (!audioRef.current || !currentTrack) return;
+ useEffect(() => {
+   if (!audioRef.current || !currentTrack) return;
 
-  const audio = audioRef.current;
-  let newSrc: string | null = null;
+   const audio = audioRef.current;
+   let newSrc: string | null = null;
 
-  // Determine new source
-  if (currentTrack.blob instanceof Blob) {
-    newSrc = URL.createObjectURL(currentTrack.blob);
-  } else if (currentTrack.fileUrl) {
-    newSrc = currentTrack.fileUrl;
-  } else {
-    console.warn('No valid source found for current track');
-    setIsPlaying(false);
-    return;
-  }
+   // Determine new source
+   if (currentTrack.blob instanceof Blob) {
+     newSrc = URL.createObjectURL(currentTrack.blob);
+   } else if (currentTrack.fileUrl) {
+     newSrc = currentTrack.fileUrl;
+   } else {
+     console.warn('No valid source found for current track');
+     setIsPlaying(false);
+     return;
+   }
 
-  // Only update src if it has changed
-  if (newSrc !== audio.src) {
-    // Revoke previous object URL
-    if (objectUrlRef.current) {
-      URL.revokeObjectURL(objectUrlRef.current);
-      objectUrlRef.current = null;
-    }
+   // Always update src for new tracks to ensure proper loading
+   if (newSrc !== audio.src) {
+     // Revoke previous object URL
+     if (objectUrlRef.current && objectUrlRef.current !== newSrc) {
+       URL.revokeObjectURL(objectUrlRef.current);
+     }
 
-    audio.src = newSrc;
-    objectUrlRef.current = newSrc;
+     // Reset audio element state before changing source
+     audio.pause();
+     audio.currentTime = 0;
 
-    // Preserve currentTime if same track (optional, based on track ID)
-    const currentTime = usePlayerStore.getState().currentTime || 0;
-    audio.currentTime = currentTime;
+     audio.src = newSrc;
+     objectUrlRef.current = newSrc;
 
-    try {
-      audio.load();
-    } catch (e) {
-      // ignore load errors
-    }
-  }
+     // Load the new source and wait for it to be ready
+     const handleCanPlay = () => {
+       audio.removeEventListener('canplay', handleCanPlay);
+       const shouldAutoPlay = usePlayerStore.getState().isPlaying;
+       if (shouldAutoPlay) {
+         audio.play().catch(err => {
+           console.error('Playback failed:', err);
+           setIsPlaying(false);
+         });
+       }
+     };
 
-  // Update Media Session metadata
-  try {
-    const nav = navigator as unknown as { mediaSession?: { metadata?: unknown } };
-    const w = window as unknown as { MediaMetadata?: new (data: unknown) => unknown };
-    if (nav.mediaSession && w.MediaMetadata) {
-      const artwork = currentTrack.coverArt ? [{ src: currentTrack.coverArt, sizes: '512x512', type: 'image/png' }] : [];
-      nav.mediaSession.metadata = new w.MediaMetadata({
-        title: currentTrack.title,
-        artist: currentTrack.artist,
-        album: currentTrack.album || 'VibeSync',
-        artwork,
-      }) as unknown as MediaMetadata;
-    }
-  } catch (e) {
-    // ignore media session errors
-  }
+     const handleError = () => {
+       audio.removeEventListener('canplay', handleCanPlay);
+       audio.removeEventListener('error', handleError);
+       console.error('Failed to load audio source');
+       setIsPlaying(false);
+     };
 
-  // Auto-play if isPlaying is true
-  const shouldAutoPlay = usePlayerStore.getState().isPlaying;
-  if (shouldAutoPlay) {
-    audio.play().catch(err => {
-      console.error('Playback failed:', err);
-      setIsPlaying(false);
-    });
-  }
-}, [currentTrack, setIsPlaying]);
+     audio.addEventListener('canplay', handleCanPlay);
+     audio.addEventListener('error', handleError);
+
+     try {
+       audio.load();
+     } catch (e) {
+       console.error('Failed to load audio source:', e);
+       setIsPlaying(false);
+       return;
+     }
+   } else {
+     // Same source, just try to play if needed
+     const shouldAutoPlay = usePlayerStore.getState().isPlaying;
+     if (shouldAutoPlay) {
+       audio.play().catch(err => {
+         console.error('Playback failed:', err);
+         setIsPlaying(false);
+       });
+     }
+   }
+
+   // Update Media Session metadata
+   try {
+     const nav = navigator as unknown as { mediaSession?: { metadata?: unknown } };
+     const w = window as unknown as { MediaMetadata?: new (data: unknown) => unknown };
+     if (nav.mediaSession && w.MediaMetadata) {
+       const artwork = currentTrack.coverArt ? [{ src: currentTrack.coverArt, sizes: '512x512', type: 'image/png' }] : [];
+       nav.mediaSession.metadata = new w.MediaMetadata({
+         title: currentTrack.title,
+         artist: currentTrack.artist,
+         album: currentTrack.album || 'VibeSync',
+         artwork,
+       }) as unknown as MediaMetadata;
+     }
+   } catch (e) {
+     // ignore media session errors
+   }
+ }, [currentTrack, setIsPlaying]);
 
   // Handle play/pause
 useEffect(() => {
