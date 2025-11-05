@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Zap, Search, Music, Filter, ChevronRight, X, AlertCircle } from "lucide-react";
+import { Zap, Search, Music, Filter, ChevronRight, X, AlertCircle, Heart, Guitar, Piano, Drum, Mic, Headphones, Radio, Speaker } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,31 @@ import { TrackCard } from "@/components/TrackCard";
 import { toast } from "sonner";
 import { usePlayerStore } from "@/store/usePlayerStore";
 import { spotifyProxy, isProxyConfigured, ExplorerTrack, Genre } from "@/lib/spotify-proxy";
+
+const genreIconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+  pop: Heart,
+  rock: Guitar,
+  jazz: Piano,
+  classical: Piano,
+  electronic: Drum,
+  "hip-hop": Mic,
+  rap: Mic,
+  country: Guitar,
+  folk: Guitar,
+  reggae: Speaker,
+  blues: Guitar,
+  soul: Heart,
+  funk: Drum,
+  disco: Radio,
+  techno: Drum,
+  house: Headphones,
+  ambient: Radio,
+  indie: Guitar,
+  alternative: Guitar,
+  metal: Guitar,
+  punk: Guitar,
+  // Add more as needed
+};
 
 export default function Explorer(): JSX.Element {
   const [tab, setTab] = useState<"charts" | "genres" | "search">("charts");
@@ -133,7 +158,7 @@ export default function Explorer(): JSX.Element {
         <div className="container mx-auto max-w-2xl px-4">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
             <h1 className="text-3xl font-bold mb-2">Explorer</h1>
-            <p className="text-muted-foreground">Discover new music from Jamendo</p>
+            <p className="text-muted-foreground">Discover new music from Spotify</p>
           </motion.div>
           <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed border-muted rounded-lg">
             <AlertCircle className="h-16 w-16 text-yellow-500 mb-4" />
@@ -162,7 +187,7 @@ export default function Explorer(): JSX.Element {
       <div className="container mx-auto max-w-2xl px-4">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
           <h1 className="text-3xl font-bold mb-2">Explorer</h1>
-          <p className="text-muted-foreground">Discover new music from Jamendo</p>
+          <p className="text-muted-foreground">Discover new music from Spotify</p>
         </motion.div>
         <Tabs value={tab} onValueChange={(v: string) => setTab(v as "charts" | "genres" | "search")} className="w-full">
           <TabsList className="grid w-full grid-cols-3">
@@ -186,7 +211,7 @@ export default function Explorer(): JSX.Element {
                   </motion.div>
                 ))}
                 <div className="text-center">
-                  <Badge variant="outline" className="mt-4">Powered by Jamendo • Full tracks</Badge>
+                  <Badge variant="outline" className="mt-4">Powered by Spotify • Full tracks</Badge>
                 </div>
               </div>
             )}
@@ -222,13 +247,16 @@ export default function Explorer(): JSX.Element {
                       <p className="text-sm text-muted-foreground">No genres available</p>
                     </div>
                   ) : (
-                    genres.map((genre) => (
-                      <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }} key={genre.id} className="group relative aspect-square rounded-xl overflow-hidden bg-gradient-to-br from-muted to-muted-foreground/10 cursor-pointer" onClick={() => handleGenreClick(genre)}>
-                        {genre.cover ? <img src={genre.cover} alt={genre.name} className="h-full w-full object-cover group-hover:scale-110 transition-transform" /> : <div className="h-full w-full bg-gradient-primary flex items-center justify-center"><Music className="h-8 w-8 text-white/70" /></div>}
-                        <div className="absolute inset-0 bg-black/20 group-hover:bg-black/30 transition-all" />
-                        <div className="absolute bottom-2 left-2 right-2"><h3 className="text-white font-semibold truncate">{genre.name}</h3></div>
-                      </motion.div>
-                    ))
+                    genres.map((genre) => {
+                      const IconComponent = genreIconMap[genre.name.toLowerCase()] || Music;
+                      return (
+                        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }} key={genre.id} className="group relative aspect-square rounded-xl overflow-hidden bg-gradient-to-br from-muted to-muted-foreground/10 cursor-pointer" onClick={() => handleGenreClick(genre)}>
+                          {genre.cover ? <img src={genre.cover} alt={genre.name} className="h-full w-full object-cover group-hover:scale-110 transition-transform" /> : <div className="h-full w-full bg-gradient-primary flex items-center justify-center"><IconComponent className="h-8 w-8 text-white/70" /></div>}
+                          <div className="absolute inset-0 bg-black/20 group-hover:bg-black/30 transition-all" />
+                          <div className="absolute bottom-2 left-2 right-2"><h3 className="text-white font-semibold truncate">{genre.name}</h3></div>
+                        </motion.div>
+                      );
+                    })
                   )}
                 </motion.div>
               )}
@@ -261,7 +289,7 @@ export default function Explorer(): JSX.Element {
             ) : (
               <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center justify-center py-12 text-center">
                 <Search className="h-16 w-16 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Search Jamendo</h3>
+                <h3 className="text-lg font-semibold mb-2">Search Spotify</h3>
                 <p className="text-sm text-muted-foreground">Find your favorite artists and tracks</p>
               </motion.div>
             )}
