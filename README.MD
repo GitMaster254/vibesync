@@ -53,6 +53,7 @@ Key features
 - Selectable karaoke transition effects (Settings)
 - Mini player (now playing) with smooth transitions
 - Theme and UI built on Tailwind + shadcn/ui
+- Lyrics viewer for Jamendo tracks (Explorer tab)
 
 Development workflow
 --------------------
@@ -98,6 +99,21 @@ Karaoke mode tips
 - At track end, playback pauses (no auto-advance) and a performance score is shown.
 - Choose visual transition effects in Settings.
 
+Lyrics feature
+--------------
+- Available in the Explorer tab for Jamendo tracks
+- Click the lyrics icon (📄) next to the heart button on any track card
+- Opens a modal with lyrics from lyrics.ovh API
+- Features: copy to clipboard, native share, open source URL
+- Caching and rate limiting protect the upstream service
+- Fallback messages for missing lyrics or errors
+
+### Environment variables for lyrics:
+- `LYRICS_CACHE_TTL`: Cache duration in ms (default: 300000 = 5min)
+- `LYRICS_RATE_LIMIT_WINDOW`: Rate limit window in ms (default: 60000 = 1min)
+- `LYRICS_RATE_LIMIT_MAX`: Max requests per window (default: 10)
+- `LYRICS_UPSTREAM_TIMEOUT`: Upstream request timeout in ms (default: 10000 = 10s)
+
 Scripts
 -------
 - npm run dev       Start dev server
@@ -118,6 +134,24 @@ Collaborators
 -------------
 - Forks or direct branches are both fine depending on your access. If you’re invited as a collaborator, push branches to this repo and open PRs to main.
 - Before merging, ensure dev server runs without TypeScript errors (npm run dev) and lint passes (npm run lint).
+
+Changelog
+---------
+### v0.1.0 - Lyrics Feature
+- **New Files:**
+  - `src/pages/api/lyrics.ts` - Backend proxy for lyrics API with caching and rate limiting
+  - `src/components/LyricsModal.tsx` - Frontend modal component for displaying lyrics
+  - `src/pages/api/__tests__/lyrics.test.ts` - Backend API tests
+  - `src/components/__tests__/LyricsModal.test.tsx` - Frontend component tests
+- **Modified Files:**
+  - `src/components/TrackCard.tsx` - Added lyrics button to track actions
+  - `src/pages/explorer.tsx` - Integrated lyrics modal and button handlers
+  - `README.MD` - Added lyrics feature documentation
+- **Integration Points:**
+  - Lyrics button added to all Jamendo track cards in Explorer (charts, genres, search)
+  - Backend API at `/api/lyrics?artist=X&title=Y` proxies to lyrics.ovh
+  - Caching prevents repeated upstream calls, rate limiting protects API
+  - Error handling with user-friendly messages and retry options
 
 License
 -------

@@ -1,4 +1,4 @@
-import { Heart, Play, Pause, MoreVertical, Trash2, X, Share, Plus, Check } from "lucide-react";
+import { Heart, Play, Pause, MoreVertical, Trash2, X, Share, Plus, Check, FileText } from "lucide-react";
 import { Track } from "@/lib/db";
 import { usePlayerStore } from "@/store/usePlayerStore";
 import { Button } from "./ui/button";
@@ -41,6 +41,8 @@ export interface TrackCardProps {
   isInSelectionMode?: boolean;
   isSelected?: boolean;
   onToggleSelection?: (trackId: string) => void;
+  // Lyrics
+  onViewLyrics?: (track: Track) => void;
 }
 
 /**
@@ -60,6 +62,7 @@ export function TrackCard({
   onToggleTrackInPlaylist,
   isTrackInPlaylist,
   onToggleSelection,
+  onViewLyrics,
 }: TrackCardProps) {
   const { currentTrack, isPlaying, playTrack: storePlayTrack, setIsPlaying } = usePlayerStore();
   const isCurrentTrack = currentTrack?.id === track.id;
@@ -191,6 +194,11 @@ export function TrackCard({
 
           {/* Actions */}
           <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
+            {onViewLyrics && (
+              <Button variant="ghost" size="icon" onClick={() => onViewLyrics(track)} className="h-7 w-7 sm:h-8 sm:w-8" title="View lyrics">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+              </Button>
+            )}
             <Button variant="ghost" size="icon" onClick={() => onToggleFavorite?.(track)} className="h-7 w-7 sm:h-8 sm:w-8">
               <Heart
                 className={cn("h-4 w-4 transition-colors", track.favorite ? "fill-primary text-primary" : "text-muted-foreground")}

@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TrackCard } from "@/components/TrackCard";
+import { LyricsModal } from "@/components/LyricsModal";
 import { toast } from "sonner";
 import { usePlayerStore } from "@/store/usePlayerStore";
 import { spotifyProxy, isProxyConfigured, ExplorerTrack, Genre } from "@/lib/spotify-proxy";
@@ -47,6 +48,8 @@ export default function Explorer(): JSX.Element {
 
   const [loading, setLoading] = useState(true);
   const [searchLoading, setSearchLoading] = useState(false);
+
+  const [lyricsTrack, setLyricsTrack] = useState<ExplorerTrack | null>(null);
 
   const playTrack = usePlayerStore((s) => s.playTrack);
   const spotifyConfigured = isProxyConfigured();
@@ -149,6 +152,10 @@ export default function Explorer(): JSX.Element {
     void fetchGenreTracks(genre.id);
   }, [fetchGenreTracks]);
 
+  const handleViewLyrics = useCallback((track: ExplorerTrack): void => {
+    setLyricsTrack(track);
+  }, []);
+
   const emptyCharts = !loading && tracks.length === 0;
   const emptyGenres = !loading && genres.length === 0;
 
@@ -207,7 +214,7 @@ export default function Explorer(): JSX.Element {
               <div className="space-y-3">
                 {tracks.map((track, index) => (
                   <motion.div key={track.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.05 }}>
-                    <TrackCard track={track as any} tracks={tracks as any[]} onPlay={() => handlePlay(track)} />
+                    <TrackCard track={track as any} tracks={tracks as any[]} onPlay={() => handlePlay(track)} onViewLyrics={() => handleViewLyrics(track)} />
                   </motion.div>
                 ))}
                 <div className="text-center">
@@ -234,7 +241,7 @@ export default function Explorer(): JSX.Element {
                   <div className="space-y-3">
                     {genreTracks.map((track, index) => (
                       <motion.div key={track.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.05 }}>
-                        <TrackCard track={track as any} tracks={genreTracks as any[]} onPlay={() => handlePlay(track)} />
+                        <TrackCard track={track as any} tracks={genreTracks as any[]} onPlay={() => handlePlay(track)} onViewLyrics={() => handleViewLyrics(track)} />
                       </motion.div>
                     ))}
                   </div>
@@ -282,7 +289,7 @@ export default function Explorer(): JSX.Element {
               <div className="space-y-3">
                 {searchResults.map((track, index) => (
                   <motion.div key={track.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.05 }}>
-                    <TrackCard track={track as any} tracks={searchResults as any[]} onPlay={() => handlePlay(track)} />
+                    <TrackCard track={track as any} tracks={searchResults as any[]} onPlay={() => handlePlay(track)} onViewLyrics={() => handleViewLyrics(track)} />
                   </motion.div>
                 ))}
               </div>
@@ -295,6 +302,17 @@ export default function Explorer(): JSX.Element {
             )}
           </TabsContent>
         </Tabs>
+
+        {lyricsTrack && (
+          <LyricsModal
+            artist={lyricsTrack.artist}
+            title={lyricsTrack.title}
+            trigger={<div />} // Not used since we control open state
+            className="hidden" // Hide trigger
+            open={!!lyricsTrack}
+            onOpenChange={(open) => !open && setLyricsTrack(null)}
+          />
+        )}
       </div>
     </div>
   );
