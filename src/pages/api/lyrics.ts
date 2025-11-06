@@ -229,7 +229,7 @@ export async function fetchLyrics(artist: string, title: string): Promise<Lyrics
   return {
     found: false,
     lyrics: '',
-    message: 'Lyrics not found from any source',
+    message: `LYRICS NOT FOUND 🔜\nYou can still search "${title}" by ${artist} for this song's lyrics online.`,
     source: '',
     cached: false,
     durationMs,

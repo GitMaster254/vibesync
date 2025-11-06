@@ -62,6 +62,7 @@ describe('Lyrics API', () => {
 
     expect(result.found).toBe(false);
     expect(result.lyrics).toBe('');
+    expect(result.message).toBe('LYRICS NOT FOUND 🔜\nYou can still search "unknown_title" by unknown_artist for this song\'s lyrics online.');
     expect(result.source).toBe('');
     expect(result.errors).toHaveLength(0); // 404 is not an error
   });

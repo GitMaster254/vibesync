@@ -67,7 +67,7 @@ export function LyricsModal({ artist, title, trigger, className, open: controlle
         ? {
             found: response.ok && !!apiData.lyrics,
             lyrics: apiData.lyrics || '',
-            message: response.ok && apiData.lyrics ? 'Lyrics found' : 'Lyrics not found',
+            message: response.ok && apiData.lyrics ? 'Lyrics found' : `LYRICS NOT FOUND 🔜\nYou can still search "${title}" by ${artist} for this song's lyrics online.`,
             source: 'lyrics.ovh',
             cached: false,
             durationMs: 0,
@@ -174,10 +174,9 @@ export function LyricsModal({ artist, title, trigger, className, open: controlle
       return (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <FileText className="h-12 w-12 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-semibold mb-2">Lyrics Not Found</h3>
-          <p className="text-sm text-muted-foreground mb-4">
-            We couldn't find lyrics for "{title}" by {artist}.
-          </p>
+          <div className="text-sm text-muted-foreground mb-4 whitespace-pre-line">
+            {lyrics.message}
+          </div>
           <div className="flex gap-2">
             <Button onClick={handleRetry} variant="outline">
               <RefreshCw className="h-4 w-4 mr-2" />
