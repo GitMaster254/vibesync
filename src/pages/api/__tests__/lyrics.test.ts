@@ -1,8 +1,11 @@
-// Unit tests for lyrics API route
-// Note: This is a basic test structure. In a real setup, you'd use Jest or similar.
+import { fetchLyrics } from '../lyrics'; // Assuming we export the function
+
+// Mock environment variables
+process.env.API_NINJAS_KEY = 'test_key';
+process.env.LYRICS_ALLOW_SCRAPING = 'false';
+process.env.LYRICS_UPSTREAM_TIMEOUT = '1000';
 
 describe('Lyrics API', () => {
-  // Mock fetch for testing
   const mockFetch = jest.fn();
   global.fetch = mockFetch;
 
@@ -10,38 +13,80 @@ describe('Lyrics API', () => {
     mockFetch.mockClear();
   });
 
-  test('successful lyrics fetch', async () => {
+  test('successful lyrics fetch from primary source (lyrics.ovh)', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 200,
-      json: async () => ({ lyrics: 'Test lyrics' })
+      json: async () => ({ lyrics: 'Test lyrics from lyrics.ovh' })
     });
 
-    // This would be the handler function logic
-    const response = await fetch('https://api.lyrics.ovh/v1/test_artist/test_title');
-    expect(response.ok).toBe(true);
-    const data = await response.json();
-    expect(data.lyrics).toBe('Test lyrics');
+    const result = await fetchLyrics('test_artist', 'test_title');
+
+    expect(result.found).toBe(true);
+    expect(result.lyrics).toBe('Test lyrics from lyrics.ovh');
+    expect(result.source).toBe('lyrics.ovh');
+    expect(result.cached).toBe(false);
+    expect(result.durationMs).toBeGreaterThan(0);
+    expect(result.errors).toHaveLength(0);
   });
 
-  test('lyrics not found (404)', async () => {
+  test('fallback to API Ninjas when primary fails', async () => {
+    // Primary fails with 404 (not considered an error)
     mockFetch.mockResolvedValueOnce({
       ok: false,
       status: 404
     });
+    // Secondary succeeds
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => [{ lyrics: 'Test lyrics from API Ninjas' }]
+    });
 
-    const response = await fetch('https://api.lyrics.ovh/v1/unknown_artist/unknown_title');
-    expect(response.status).toBe(404);
+    const result = await fetchLyrics('test_artist', 'test_title');
+
+    expect(result.found).toBe(true);
+    expect(result.lyrics).toBe('Test lyrics from API Ninjas');
+    expect(result.source).toBe('api-ninjas');
+    expect(result.errors).toHaveLength(0); // 404 is not an error, just not found
   });
 
-  test('upstream error handling', async () => {
-    mockFetch.mockRejectedValueOnce(new Error('Network error'));
+  test('lyrics not found from all sources', async () => {
+    // All sources fail with 404
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 404
+    });
 
-    try {
-      await fetch('https://api.lyrics.ovh/v1/test_artist/test_title');
-    } catch (error) {
-      expect(error.message).toBe('Network error');
-    }
+    const result = await fetchLyrics('unknown_artist', 'unknown_title');
+
+    expect(result.found).toBe(false);
+    expect(result.lyrics).toBe('');
+    expect(result.source).toBe('');
+    expect(result.errors).toHaveLength(0); // 404 is not an error
+  });
+
+  test('upstream error handling (5xx)', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 500
+    });
+
+    const result = await fetchLyrics('test_artist', 'test_title');
+
+    expect(result.found).toBe(false);
+    expect(result.errors[0].message).toBe('HTTP 500');
+  });
+
+  test('timeout handling', async () => {
+    const abortError = new Error('AbortError');
+    abortError.name = 'AbortError';
+    mockFetch.mockRejectedValueOnce(abortError);
+
+    const result = await fetchLyrics('test_artist', 'test_title');
+
+    expect(result.found).toBe(false);
+    expect(result.errors[0].message).toBe('Timeout');
   });
 
   test('rate limiting', () => {

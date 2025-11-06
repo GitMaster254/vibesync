@@ -13,6 +13,8 @@ interface LyricsResponse {
   message: string;
   source: string;
   cached: boolean;
+  durationMs: number;
+  errors: Array<{ source: string; status?: number; message: string }>;
 }
 
 interface LyricsModalProps {
@@ -67,7 +69,9 @@ export function LyricsModal({ artist, title, trigger, className, open: controlle
             lyrics: apiData.lyrics || '',
             message: response.ok && apiData.lyrics ? 'Lyrics found' : 'Lyrics not found',
             source: 'lyrics.ovh',
-            cached: false
+            cached: false,
+            durationMs: 0,
+            errors: []
           }
         : apiData;
 
