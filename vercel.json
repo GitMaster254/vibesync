@@ -12,6 +12,10 @@
   ],
   "routes": [
     {
+      "src": "/api/lyrics",
+      "dest": "/api/lyrics"
+    },
+    {
       "src": "/api/(.*)",
       "dest": "https://metadata-42b8.onrender.com/$1"
     },

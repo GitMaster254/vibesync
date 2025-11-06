@@ -54,7 +54,20 @@ async function fetchLyrics(artist: string, title: string) {
     clearTimeout(timeoutId);
 
     if (response.status === 200) {
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        // If not JSON, treat as not found
+        console.warn('Upstream returned non-JSON response:', parseError);
+        return {
+          found: false,
+          lyrics: '',
+          message: 'Lyrics not found',
+          source: 'lyrics.ovh',
+          cached: false
+        };
+      }
       return {
         found: true,
         lyrics: data.lyrics || '',

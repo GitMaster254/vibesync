@@ -105,8 +105,10 @@ Lyrics feature
 - Click the lyrics icon (📄) next to the heart button on any track card
 - Opens a modal with lyrics from lyrics.ovh API
 - Features: copy to clipboard, native share, open source URL
-- Caching and rate limiting protect the upstream service
+- Caching and rate limiting protect the upstream service (when deployed)
 - Fallback messages for missing lyrics or errors
+- **Development mode**: Calls lyrics API directly (CORS allowed) for local testing
+- **Production mode**: Uses backend proxy at `/api/lyrics` for security and caching
 
 ### Environment variables for lyrics:
 - `LYRICS_CACHE_TTL`: Cache duration in ms (default: 300000 = 5min)

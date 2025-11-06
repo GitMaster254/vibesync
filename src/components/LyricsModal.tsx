@@ -38,14 +38,39 @@ export function LyricsModal({ artist, title, trigger, className, open: controlle
     setError(null);
 
     try {
-      const params = new URLSearchParams({ artist, title });
-      const response = await fetch(`/api/lyrics?${params}`);
+      // In development, call API directly since serverless functions don't run locally
+      const isDevelopment = import.meta.env.DEV;
+      const apiUrl = isDevelopment
+        ? `https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`
+        : `/api/lyrics?${new URLSearchParams({ artist, title })}`;
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      const response = await fetch(apiUrl);
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        console.error('Response is not JSON:', contentType);
+        throw new Error('Invalid response format');
       }
 
-      const data: LyricsResponse = await response.json();
+      let apiData;
+      try {
+        apiData = await response.json();
+      } catch (parseError) {
+        console.error('Failed to parse response as JSON:', parseError);
+        throw new Error('Invalid response format');
+      }
+
+      // Normalize response format
+      const data: LyricsResponse = isDevelopment
+        ? {
+            found: response.ok && !!apiData.lyrics,
+            lyrics: apiData.lyrics || '',
+            message: response.ok && apiData.lyrics ? 'Lyrics found' : 'Lyrics not found',
+            source: 'lyrics.ovh',
+            cached: false
+          }
+        : apiData;
+
       setLyrics(data);
     } catch (err: any) {
       console.error('Lyrics fetch error:', err);
