@@ -32,3 +32,5 @@ dist-ssr
 backend/
 backend/uploads/
 .vercel/
+
+/generated/prisma
