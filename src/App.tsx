@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Suspense, lazy, useState, useEffect } from "react";
 import { Analytics } from "@vercel/analytics/react";
 import { cn } from '@/lib/utils';
+import { getCurrentUser } from "@/lib/auth";
+import { initializeWebSocket } from "@/lib/websocket-service";
 
 const Index = lazy(() => import("./pages/Index"));
 const Player = lazy(() => import("./pages/Player"));
@@ -33,6 +35,9 @@ const App = () => {
 
   // Check if we're on desktop
   useEffect(() => {
+    const user = getCurrentUser();
+    initializeWebSocket(user.id);
+    
     const checkScreenSize = () => {
       setIsDesktop(window.innerWidth >= 768);
     };
