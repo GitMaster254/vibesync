@@ -76,6 +76,8 @@ export function NavBar({ sidebarOpen, setSidebarOpen, isDesktop }) {
           sidebarOpen ? 'p-6 justify-start gap-4' : 'p-4 justify-center'
         )}>
           <button
+            type="button"
+            aria-label={sidebarOpen ? 'Collapse sidebar navigation' : 'Expand sidebar navigation'}
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className={cn(
               'rounded-lg flex items-center justify-center transition-all duration-300 hover:bg-accent',
