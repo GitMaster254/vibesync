@@ -313,22 +313,22 @@ export default function Player() {
                 <p className="truncate text-muted-foreground">{currentTrack.artist}</p>
               </div>
               <div className="flex items-center gap-2">
-                <Button
+                {/* <Button
                   variant="ghost"
                   size="icon"
                   onClick={activateKaraokeMode}
                   className="h-10 w-10"
                 >
                   <Mic className="h-5 w-5" />
-                </Button>
-                <Button
+                </Button> */}
+                {/* <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => carouselApi?.scrollNext()}
                   className="h-10 w-10"
                 >
                   <Headphones className="h-5 w-5" />
-                </Button>
+                </Button> */}
                 <Button
                   variant="ghost"
                   size="icon"
@@ -341,7 +341,7 @@ export default function Player() {
                     )}
                   />
                 </Button>
-                <Button
+                {/* <Button
                   variant="secondary"
                   size="icon"
                   className="h-10 w-10"
@@ -351,13 +351,13 @@ export default function Player() {
                   }}
                 >
                   <Users className="h-5 w-5" />
-                </Button>
+                </Button> */}
               </div>
             </div>
           </motion.div>
 
           {/* Listening Party Section */}
-          <motion.div
+          {/* <motion.div
             id="listening-party-section"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -370,7 +370,7 @@ export default function Player() {
                 username={getCurrentUser().username}
               />
             </div>
-          </motion.div>
+          </motion.div> */}
 
           {/* Progress Bar */}
           <motion.div
