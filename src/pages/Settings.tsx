@@ -208,7 +208,7 @@ export default function Settings() {
           </div>
         </motion.div>
 
-        {/* Karaoke Effect Selector */}
+        {/* Party Effect Selector */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -217,7 +217,7 @@ export default function Settings() {
         >
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-muted-foreground uppercase">
-              Karaoke Mode
+              Party Mode
             </h2>
             <Button
               variant="ghost"

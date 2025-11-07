@@ -73,9 +73,6 @@ export default function MostPlayed() {
           </Button>
           
           <div className="flex items-center gap-3">
-            <div className="rounded-xl bg-gradient-to-br from-pink-300 to-purple-200 p-3">
-              <TrendingUp className="h-8 w-8 text-purple-900" />
-            </div>
             <div>
               <h1 className="text-2xl font-bold">Most Played</h1>
               <p className="text-sm text-muted-foreground">{tracks.length} tracks</p>

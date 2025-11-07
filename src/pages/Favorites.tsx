@@ -52,18 +52,15 @@ export default function Favorites() {
           </Button>
 
           <div className="flex items-center gap-3">
-            <div className="rounded-xl bg-gradient-to-br from-pink-300 to-purple-200 p-3">
-              <Heart className="h-8 w-8 text-purple-900" />
-            </div>
             <div>
-           <p className="text-sm text-muted-foreground">
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold">Favorites</h1>
+            <p className="text-sm text-muted-foreground">
             {favorites.length} {favorites.length === 1 ? 'track' : 'tracks'}
           </p>
-            </div>
-          <h1 className="text-3xl font-bold">Favorites</h1>
-
           </div>
-
+          </div>
         </div>
 
         {/* Favorites list */}
