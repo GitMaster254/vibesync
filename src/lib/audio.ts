@@ -11,6 +11,15 @@ let globalAudioContext: AudioContext | null = null;
 let globalMediaSource: MediaElementAudioSourceNode | null = null;
 let globalAnalyser: AnalyserNode | null = null;
 
+// Global audio processing nodes
+let globalEqualizerFilters: BiquadFilterNode[] | null = null;
+let globalReverbNode: ConvolverNode | null = null;
+let globalDelayNode: DelayNode | null = null;
+let globalDistortionNode: WaveShaperNode | null = null;
+let globalWetGain: GainNode | null = null;
+let globalDryGain: GainNode | null = null;
+let globalMasterGain: GainNode | null = null;
+
 /**
  * Get or create the global audio instance
  */
@@ -42,7 +51,7 @@ export function getAudioAnalyser(fftSize: number = 256, smoothing: number = 0.8)
     const audio = getAudioInstance();
     const globalWin = globalThis as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext };
     const CtxCtor: typeof AudioContext | undefined = globalWin.AudioContext || globalWin.webkitAudioContext;
-    
+
     if (!CtxCtor) {
       throw new Error('Web Audio API not supported');
     }
@@ -54,7 +63,13 @@ export function getAudioAnalyser(fftSize: number = 256, smoothing: number = 0.8)
 
     // Create the MediaElementSource only once
     globalMediaSource = globalAudioContext.createMediaElementSource(audio);
+
+    // Initialize audio processing chain
+    initializeAudioProcessingChain();
+
+    // Connect source to analyser and processing chain
     globalMediaSource.connect(globalAnalyser);
+    globalMediaSource.connect(globalDryGain!);
     globalAnalyser.connect(globalAudioContext.destination);
   } else {
     // Update analyser settings if they changed
@@ -66,6 +81,79 @@ export function getAudioAnalyser(fftSize: number = 256, smoothing: number = 0.8)
     context: globalAudioContext,
     analyser: globalAnalyser,
   };
+}
+
+/**
+ * Initialize the audio processing chain for effects and equalization
+ */
+function initializeAudioProcessingChain() {
+  if (!globalAudioContext) return;
+
+  // Create equalizer filters (10 bands)
+  const frequencies = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
+  globalEqualizerFilters = frequencies.map(freq => {
+    const filter = globalAudioContext!.createBiquadFilter();
+    filter.type = 'peaking';
+    filter.frequency.value = freq;
+    filter.Q.value = 1.4; // Quality factor for bandwidth
+    filter.gain.value = 0; // Flat response initially
+    return filter;
+  });
+
+  // Connect equalizer filters in series
+  for (let i = 0; i < globalEqualizerFilters.length - 1; i++) {
+    globalEqualizerFilters[i].connect(globalEqualizerFilters[i + 1]);
+  }
+
+  // Create wet/dry mix for effects
+  globalWetGain = globalAudioContext.createGain();
+  globalDryGain = globalAudioContext.createGain();
+  globalMasterGain = globalAudioContext.createGain();
+
+  // Set initial mix (dry only)
+  globalWetGain.gain.value = 0;
+  globalDryGain.gain.value = 1;
+  globalMasterGain.gain.value = 1;
+
+  // Connect dry path
+  if (globalEqualizerFilters.length > 0) {
+    globalEqualizerFilters[globalEqualizerFilters.length - 1].connect(globalDryGain);
+  }
+
+  // Connect to master output
+  globalDryGain.connect(globalMasterGain);
+  globalWetGain.connect(globalMasterGain);
+  globalMasterGain.connect(globalAudioContext.destination);
+}
+
+/**
+ * Update equalizer band gains
+ */
+export function updateEqualizerBands(bands: number[]) {
+  if (!globalEqualizerFilters) return;
+
+  globalEqualizerFilters.forEach((filter, index) => {
+    if (bands[index] !== undefined) {
+      filter.gain.value = bands[index];
+    }
+  });
+}
+
+/**
+ * Enable/disable equalizer
+ */
+export function setEqualizerEnabled(enabled: boolean) {
+  if (!globalEqualizerFilters || !globalDryGain) return;
+
+  // When disabled, bypass equalizer by connecting directly to dry gain
+  // When enabled, use the filter chain
+  // This is a simplified implementation - in practice you'd need to reconnect the chain
+  if (!enabled) {
+    // Reset all filters to flat response
+    globalEqualizerFilters.forEach(filter => {
+      filter.gain.value = 0;
+    });
+  }
 }
 
 /**
@@ -324,7 +412,7 @@ useEffect(() => {
  */
 export function formatTime(seconds: number): string {
   if (!isFinite(seconds)) return '0:00';
-  
+
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   return `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -349,7 +437,7 @@ export async function parseAudioFile(file: File): Promise<{
       const filename = file.name.replace(/\.[^/.]+$/, '');
       // We only needed this URL to read metadata; revoke it now.
       URL.revokeObjectURL(objectUrl);
-      
+
       resolve({
         title: filename,
         artist: 'Unknown Artist',

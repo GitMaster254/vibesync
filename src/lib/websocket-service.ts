@@ -20,7 +20,7 @@ class WebSocketService {
     this.userId = userId;
   }
 
-  connect(url: string = 'https://metadata-42b8.onrender.com/') {
+  connect(url: string = 'wss://your-websocket-server.com') {
     if (this.ws?.readyState === WebSocket.OPEN) return;
 
     this.ws = new WebSocket(url);

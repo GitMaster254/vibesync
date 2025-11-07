@@ -312,18 +312,63 @@ export default function Player() {
                 <h1 className="truncate text-2xl font-bold">{currentTrack.title}</h1>
                 <p className="truncate text-muted-foreground">{currentTrack.artist}</p>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleToggleFavorite}
-              >
-                <Heart
-                  className={cn(
-                    'h-6 w-6 transition-colors',
-                    currentTrack.favorite ? 'fill-primary text-primary' : 'text-muted-foreground'
-                  )}
-                />
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={activateKaraokeMode}
+                  className="h-10 w-10"
+                >
+                  <Mic className="h-5 w-5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => carouselApi?.scrollNext()}
+                  className="h-10 w-10"
+                >
+                  <Headphones className="h-5 w-5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleToggleFavorite}
+                >
+                  <Heart
+                    className={cn(
+                      'h-6 w-6 transition-colors',
+                      currentTrack.favorite ? 'fill-primary text-primary' : 'text-muted-foreground'
+                    )}
+                  />
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  className="h-10 w-10"
+                  onClick={() => {
+                    const partySection = document.getElementById('listening-party-section');
+                    partySection?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                >
+                  <Users className="h-5 w-5" />
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Listening Party Section */}
+          <motion.div
+            id="listening-party-section"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.4 }}
+            className="px-8 pb-4 mt-4 overflow-y-auto max-h-[calc(100vh-500px)]"
+          >
+            <div className="bg-background/80 backdrop-blur-sm rounded-lg border border-border p-4">
+              <ListeningParty
+                userId={getCurrentUser().id}
+                username={getCurrentUser().username}
+              />
             </div>
           </motion.div>
 

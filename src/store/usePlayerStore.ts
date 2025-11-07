@@ -24,7 +24,19 @@ interface PlayerState {
   // Playback modes
   shuffle: boolean;
   repeat: 'none' | 'one' | 'all';
-  
+
+  // Audio processing
+  equalizer: {
+    enabled: boolean;
+    bands: number[]; // 10 bands: 32, 64, 125, 250, 500, 1k, 2k, 4k, 8k, 16k Hz
+    presets: { [key: string]: number[] };
+  };
+  effects: {
+    reverb: { enabled: boolean; wet: number; decay: number; preDelay: number };
+    delay: { enabled: boolean; wet: number; time: number; feedback: number };
+    distortion: { enabled: boolean; wet: number; amount: number; };
+  };
+
   // UI state
   isPlayerVisible: boolean;
   
@@ -47,6 +59,17 @@ interface PlayerState {
   clearQueue: () => void;
   togglePlayer: () => void;
   reset: () => void;
+
+  // Audio processing actions
+  setEqualizerEnabled: (enabled: boolean) => void;
+  setEqualizerBand: (bandIndex: number, value: number) => void;
+  setEqualizerPreset: (preset: string) => void;
+  setReverbEnabled: (enabled: boolean) => void;
+  setReverbParams: (params: Partial<PlayerState['effects']['reverb']>) => void;
+  setDelayEnabled: (enabled: boolean) => void;
+  setDelayParams: (params: Partial<PlayerState['effects']['delay']>) => void;
+  setDistortionEnabled: (enabled: boolean) => void;
+  setDistortionParams: (params: Partial<PlayerState['effects']['distortion']>) => void;
 }
 
 // Helper function to shuffle array
