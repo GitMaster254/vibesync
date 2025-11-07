@@ -1,0 +1,89 @@
+name: "Bug report"
+description: "Create a report to help us identify and fix bugs in vibesync."
+title: "[BUG] {{summary}}"
+labels:
+  - "bug"
+  - "triage"
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **If this is a security issue, do NOT open a public issue.** See SECURITY.md for how to report vulnerabilities privately.
+
+  - type: input
+    id: summary
+    attributes:
+      label: "Short summary"
+      description: "A clear and concise description of the bug."
+      placeholder: "e.g. Crash when opening project"
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: "Reproduction steps"
+      description: |
+        Steps to reproduce the behavior. Provide a minimal, complete, and verifiable example (link to a small repo, gist, or Codesandbox/StackBlitz when possible). If you can't provide code, list exact steps and inputs.
+      placeholder: "1. Go to '...'\n2. Click '...'\n3. Run `...`\n4. Observe the issue"
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: "Expected behavior"
+      description: "What you expected to happen."
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: "Actual behavior"
+      description: "What actually happened (errors, incorrect output, crashes)."
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: "Logs / Stack traces"
+      description: "Paste logs or stack traces here (use triple backticks for code blocks)."
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: "Environment"
+      description: |
+        Provide versions and environment details:
+        - vibesync version (commit SHA or release):
+        - Node.js version:
+        - npm / yarn version:
+        - TypeScript version:
+        - OS / distro / version:
+        - Browser (if applicable)
+        - Relevant config (tsconfig, .env keys omitted)
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: "Severity / Impact"
+      description: "Select the severity that best matches this issue."
+      options:
+        - "Blocking (app unusable)"
+        - "Major (important functionality broken)"
+        - "Minor (has workaround)"
+        - "Low (trivial or cosmetic)"
+
+  - type: textarea
+    id: workaround
+    attributes:
+      label: "Workaround"
+      description: "If you know a workaround, describe it here."
+
+  - type: input
+    id: contact
+    attributes:
+      label: "Contact (optional)"
+      description: "Your contact (email or handle) if you want follow-up off GitHub."
+
+  - type: markdown
+    attributes:
+      value: |
+        Thank you — clear, reproducible bug reports help us fix issues faster.
