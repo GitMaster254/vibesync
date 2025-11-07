@@ -14,8 +14,8 @@ If you're unsure whether a particular version is supported, include the version/
 If you believe you've found a security vulnerability in vibesync, please report it privately — do not create a public issue.
 
 Preferred reporting methods (in order):
-1. Email: vibesync@alwaysdata.net
-2. GitHub Security Advisories: https://github.com/GitMaster254/vibesync/security/advisories (private)
+1. Email: <vibesync@alwaysdata.net>
+2. GitHub Security Advisories: <https://github.com/GitMaster254/vibesync/security/advisories> (private)
 
 When reporting, please include:
 - A short, descriptive summary of the problem.
@@ -65,9 +65,9 @@ vibesync depends on third-party libraries. If the vulnerability is in a dependen
 - Patch or pin the dependency until an upstream fix is available.
 
 ## Contact
-Email: vibesync@alwaysdata.net
+Email: <vibesync@alwaysdata.net>
 
-If email is not possible, open a private GitHub Security Advisory for the repository: https://github.com/GitMaster254/vibesync/security/advisories
+If email is not possible, open a private GitHub Security Advisory for the repository: <https://github.com/GitMaster254/vibesync/security/advisories>
 
 ---
 
