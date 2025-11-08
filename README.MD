@@ -1,124 +1,149 @@
-VibeSync
-=================
+## VibeSync — Music Player
 
-A modern, offline-friendly music player PWA built with React, TypeScript, Vite, Tailwind, shadcn/ui, Zustand, and Framer Motion.
+[![TypeScript](https://img.shields.io/badge/language-TypeScript-3178c6)](#) [![License](https://img.shields.io/badge/license-MIT-blue.svg)](#) [![Issues](https://img.shields.io/github/issues/GitMaster254/vibesync)](https://github.com/GitMaster254/vibesync/issues)
 
-Quick start
------------
-
-Prerequisites:
-- Node.js 18+ and npm 9+
-
-Install and run:
-
-1. Install dependencies
-	 - npm install
-2. Start the dev server
-	 - npm run dev
-3. Build for production
-	 - npm run build
-4. Preview the production build
-	 - npm run preview
-
-Deploy to Vercel:
-- See [DEPLOYMENT.md](DEPLOYMENT.md) for complete deployment guide
-- Serverless functions in `/api` folder handle metadata extraction
-- Auto-deploys from GitHub with zero configuration
-
-Tech stack
-----------
-- React 18 + TypeScript
-- Vite 5
-- Tailwind CSS + shadcn/ui (Radix primitives)
-- Zustand for player state
-- idb for IndexedDB storage
-- Framer Motion for animations
-- Vite PWA plugin for installable app behavior
-
-Project structure
------------------
-- src/
-	- components/           Reusable UI (shadcn-based) and app widgets
-	- pages/                Route pages (Player, Library, Settings, etc.)
-	- store/                Zustand player store
-	- lib/                  Core helpers (audio, db, utils, karaoke effects)
-	- hooks/                Custom hooks
-	- index.css, App.tsx    App shell
+VibeSync is an offline-first, PWA music player built with Vite, React and TypeScript. It focuses on fast local library management, seamless playback, and a beautiful, responsive UI. The app supports importing local audio files, extracting metadata (worker fallback + optional server backend), playlists, searching, and a lightweight streaming proxy for remote audio.
 
 Key features
 ------------
-- Local music library (IndexedDB) with metadata
-- Global audio singleton to prevent multiple audio instances
-- Full-screen player with karaoke mode
-- Selectable karaoke transition effects (Settings)
-- Mini player (now playing) with smooth transitions
-- Theme and UI built on Tailwind + shadcn/ui
+- Offline-first PWA music player with local library support
+- Party Mode
+- Import and metadata extraction (worker fallback; optional server backend for rich extraction)
+- Playlist management, favorites, recently played, and more
+- Lightweight serverless stream proxy at `api/spotify/stream.ts` for CORS-friendly streaming
+- Built with Vite, React, TypeScript, Tailwind CSS and shadcn/ui components
+- Classic support for both Desktop and Mobile users
 
-Development workflow
---------------------
-Branching:
-- main is protected. Create feature branches from main (e.g., feature/karaoke-countdown).
-
-Commits:
-- Keep messages clear and scoped. Conventional commits are welcome (feat:, fix:, chore:), but not enforced.
-
-Pull requests:
-- Open PRs against main. Include a short description, screenshots/GIFs for UI changes, and testing notes.
-- Keep PRs focused; avoid large unrelated diffs.
-
-Coding standards
-----------------
-- TypeScript: prefer explicit types for public APIs.
-- State: use Zustand store in src/store/usePlayerStore.ts for player state.
-- Audio: use the global singleton in src/lib/audio.ts; do not instantiate new Audio elements in components.
-- Styling: Tailwind first; create/compose shadcn components under src/components/ui when needed.
-- Animations: Framer Motion. Prefer shared element transitions where appropriate.
-- Linting: run npm run lint and address warnings.
-
-Environment & configuration
----------------------------
-- No secrets required. PWA configuration lives in public/manifest.json and vite.config.ts (vite-plugin-pwa).
-- The app stores user media in IndexedDB (via idb). Files aren’t uploaded.
-
-Testing
--------
-- Vitest is not yet set up. Planned tasks:
-	- Add Vitest config in vite.config.ts
-	- Unit tests for player actions (playTrack, nextTrack, repeat/shuffle)
-
-PWA & offline notes
--------------------
-- Installable on desktop and mobile via the browser’s install prompt.
-- Media files are persisted in the browser via IndexedDB. Clearing site data removes them.
-
-Karaoke mode tips
+Table of contents
 -----------------
-- Enter karaoke by swiping left on album art in the Player page.
-- On entry, playback pauses and seeks to 0. Press play to trigger a 3-2-1 countdown with fade effects, then playback starts.
-- At track end, playback pauses (no auto-advance) and a performance score is shown.
-- Choose visual transition effects in Settings.
+- [Demo](#demo)
+- [Quickstart](#quickstart)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Configuration](#configuration)
+- [Development](#development)
+- [Screenshoots](#screenshots--assets)
+<!-- - [Testing](#testing) -->
+- [Contributing](#contributing)
+- [Security](#security)
+- [License](#license)
 
-Scripts
--------
-- npm run dev       Start dev server
-- npm run build     Build for production
-- npm run preview   Preview the production build
-- npm run lint      Run ESLint
+Demo
+----
+Add a short GIF or a link to a deployed demo here. To include images/screenshots, add PNGs to the repository (recommended path: `docs/images/`) or reference the app icons in `public/icons/` (for example `/icons/icon-192x192.png`).
 
-Troubleshooting
----------------
-- Audio doesn’t play after selecting a file:
-	- Ensure the file loads correctly; check the browser console for errors from the global audio hook.
-- Two tracks playing at once:
-	- Ensure no component creates a new Audio element; the app uses a singleton (src/lib/audio.ts).
-- Animations feel janky:
-	- We use Framer Motion shared element transitions for the mini/full player. If you see regressions, capture a screen recording and include details in your PR.
+Quickstart
+----------
+Get the dev server running locally (Windows / cmd.exe):
 
-Collaborators
+```cmd
+npm install
+npm run dev
+```
+
+The dev server runs on port 8080 by default (see `vite.config.ts`). Open http://localhost:8080/ in your browser.
+
+Installation
+------------
+This project is an application (not intended for npm publishing). To run locally:
+
+```cmd
+npm install
+npm run dev        # start development server
+npm run build      # build production assets
+npm run preview    # preview the production build
+```
+
+Usage
+-----
+- Open the app in your browser and use the Library → Upload files button to import audio.
+- The app will use a worker fallback for basic metadata extraction. If you deploy the serverless backend, it will perform richer extraction (FFmpeg, cover art).
+- Serverless stream proxy: `api/spotify/stream.ts` forwards Range requests and adds CORS headers (useful for remote audio sources).
+
+Configuration
 -------------
-- Forks or direct branches are both fine depending on your access. If you’re invited as a collaborator, push branches to this repo and open PRs to main.
-- Before merging, ensure dev server runs without TypeScript errors (npm run dev) and lint passes (npm run lint).
+- Environment variables: frontend reads `VITE_METADATA_API` (optional) to point to a metadata extraction API.
+- Path aliases: `@` → `./src` (configured in `tsconfig.json`).
+
+Development
+-----------
+Key scripts (run with npm):
+
+```cmd
+npm run dev       # start Vite dev server (port 8080)
+npm run build     # production build
+npm run build:dev  # build with development mode
+npm run lint       # run ESLint
+npm run preview    # preview the production build
+```
+
+Notes for contributors:
+- The UI is located under `src/components` and `src/pages`.
+- Serverless API routes live in the `api/` directory (Vercel-style functions). See `api/spotify/stream.ts` for the streaming proxy.
+- Tailwind config: `tailwind.config.ts`.
+
+Screenshots / Assets
+--------------------
+Below are the app screenshots for both light and dark themes. File names indicate the theme (Light / Dark) and the app section shown (Home, Explore, Music, Settings).
+
+| Section | Light | Dark |
+|---|---:|---:|
+| Home | ![Light - Home](docs/images/LightHomeTab.png "Light — Home") | ![Dark - Home](docs/images/DarkHomeTab.png "Dark — Home") |
+| Explore | ![Light - Explore](docs/images/LightExploreTab.png "Light — Explore") | ![Dark - Explore](docs/images/DarkExploreTab.png "Dark — Explore") |
+| Music / Player | ![Light - Music](docs/images/LightMusicTab.png "Light — Music") | ![Dark - Music](docs/images/DarkMusicTab.png "Dark — Music") |
+| Settings | ![Light - Settings](docs/images/LightSettingsTab.png "Light — Settings") | ![Dark - Settings](docs/images/DarkSettingsTab.png "Dark — Settings") |
+| Visualizer | ![Light - Visualizer](docs/images/LightVisualizerTab.png "Light — Visualizer") | ![Dark - Visualizer](docs/images/DarkVisualizerTab.png "Dark — Visualizer") |
+
+Notes and recommended sizes
+
+- Place additional screenshots in `docs/images/` and name them with the `Light`/`Dark` prefix and a short section name (for example `LightNowPlaying.png`).
+- Use `/icons/icon-192x192.png` for small thumbnails and `/icons/icon-512x512.png` for larger assets (in `public/icons/`).
+- If images render too large on GitHub, consider creating smaller thumbnails (e.g., 800px width) and referencing those instead.
+
+Contributing
+------------
+Contributions are welcome. Please read `CODE_OF_CONDUCT.md` and `SECURITY.md` before opening issues or PRs. See `TODO.md` for planned work and feature ideas.
+
+Security
+--------
+If you find a security issue, follow the private reporting steps in [SECURITY](SECURITY).
 
 License
 -------
-- TBD
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+
+
+---
+
+<!-- Roadmap
+-------
+High-level planned features and milestones. Use an ordered list and dates where possible. Mark what’s planned, in-progress, and done. -->
+
+FAQ / Troubleshooting
+---------------------
+Common problems and solutions (installation errors, runtime errors, configuration pitfalls).
+
+
+Maintainers
+-----------
+- Repo owner:
+
+	-  GitMaster254 (https://github.com/GitMaster254)
+
+- Collaborators:
+
+	- Achacha Hedmon  (https://github.com/Hedmon0094)
+
+	- Amos Kilonzo		  (https://github.com/Amos0101)
+
+	- Linda Nekesa	  (https://github.com/LindaNekesa)
+	
+
+Acknowledgements
+----------------
+Credits, libraries, and resources used.
+
+
+Contact / Support
+-----------------
+For support or questions, open an issue using the appropriate issue template, or contact the maintainers.
