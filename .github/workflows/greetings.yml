@@ -10,41 +10,45 @@ jobs:
       pull-requests: write
 
     steps:
+      - name: Ensure gh CLI
+        run: |
+          if ! command -v gh >/dev/null 2>&1; then
+            echo "gh not found — installing..."
+            curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg >/dev/null 2>&1
+            sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+            echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+            sudo apt update
+            sudo apt install gh -y
+          else
+            echo "gh found:" $(gh --version | head -n1)
+          fi
+
       - name: Greet first-time contributors
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const issue = context.payload.issue;
-            const pr = context.payload.pull_request;
-            const sender = context.payload.sender.login;
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # For issues
+          if [ "${{ github.event_name }}" == "issues" ]; then
+            ISSUE_NUMBER=${{ github.event.issue.number }}
+            SENDER=${{ github.event.sender.login }}
+            
+            # Count user's issues in this repo
+            ISSUE_COUNT=$(gh api search/issues -q "repo:${{ github.repository }} author:$SENDER is:issue" --jq '.total_count')
+            
+            if [ "$ISSUE_COUNT" -eq 1 ]; then
+              gh api repos/${{ github.repository }}/issues/$ISSUE_NUMBER/comments -f body="👋 Hi @$SENDER! Thanks for opening your first issue! 🎉\nWe appreciate your contribution and will review it soon."
+            fi
+          fi
 
-            // Check if it's an issue
-            if (issue) {
-              const { data: userIssues } = await github.rest.search.issuesAndPullRequests({
-                q: `repo:${context.repo.owner}/${context.repo.repo} author:${sender} is:issue`
-              });
-              if (userIssues.total_count === 1) {
-                await github.rest.issues.createComment({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: issue.number,
-                  body: `👋 Hi @${sender}! Thanks for opening your first issue! 🎉\nWe appreciate your contribution and will review it soon.`
-                });
-              }
-            }
-
-            // Check if it's a pull request
-            if (pr) {
-              const { data: userPRs } = await github.rest.search.issuesAndPullRequests({
-                q: `repo:${context.repo.owner}/${context.repo.repo} author:${sender} is:pr`
-              });
-              if (userPRs.total_count === 1) {
-                await github.rest.issues.createComment({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: pr.number,
-                  body: `🚀 Hey @${sender}! Thanks for submitting your first pull request! 🥳\nA maintainer will review it shortly. Welcome aboard!`
-                });
-              }
-            }
+          # For pull requests
+          if [ "${{ github.event_name }}" == "pull_request_target" ]; then
+            PR_NUMBER=${{ github.event.pull_request.number }}
+            SENDER=${{ github.event.sender.login }}
+            
+            # Count user's PRs in this repo
+            PR_COUNT=$(gh api search/issues -q "repo:${{ github.repository }} author:$SENDER is:pr" --jq '.total_count')
+            
+            if [ "$PR_COUNT" -eq 1 ]; then
+              gh api repos/${{ github.repository }}/issues/$PR_NUMBER/comments -f body="🚀 Hey @$SENDER! Thanks for submitting your first pull request! 🥳\nA maintainer will review it shortly. Welcome aboard!"
+            fi
+          fi
