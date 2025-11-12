@@ -2,94 +2,50 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
-
 @layer base {
-  /* Light theme (default) */
   :root {
     --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
-
+    --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
-
+    --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-
-    --primary: 271 76% 68%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 160 84% 39%;
-    --secondary-foreground: 0 0% 100%;
-
-    --muted: 240 5% 96%;
-    --muted-foreground: 240 4.8% 46.1%;
-
-    --accent: 271 76% 68%;
-    --accent-foreground: 0 0% 100%;
-
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 222.2 47.4% 11.2%;
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 271 76% 68%;
-
-    --radius: 1rem;
-
-    /* Gradient tokens */
-    --gradient-primary: linear-gradient(135deg, hsl(271 76% 68%), hsl(160 84% 39%));
-    --gradient-glow: radial-gradient(circle at 50% 0%, hsl(271 76% 68% / 0.15), transparent 70%);
-    
-    /* Glass effect */
-    --glass-bg: hsla(0, 0%, 100%, 0.6);
-    --glass-border: hsla(240, 10%, 40%, 0.12);
-    
-    /* Transitions */
-    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+    --radius: 0.5rem;
   }
 
-  /* Dark theme (activated via .dark) */
   .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-
-    --card: 240 10% 8%;
-    --card-foreground: 0 0% 98%;
-
-    --popover: 240 10% 8%;
-    --popover-foreground: 0 0% 98%;
-
-    --primary: 271 76% 68%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 160 84% 39%;
-    --secondary-foreground: 0 0% 100%;
-
-    --muted: 240 5% 15%;
-    --muted-foreground: 240 5% 64.9%;
-
-    --accent: 271 76% 68%;
-    --accent-foreground: 0 0% 100%;
-
-    --destructive: 0 62.8% 50.6%;
-    --destructive-foreground: 0 0% 98%;
-
-    --border: 240 5% 15%;
-    --input: 240 5% 15%;
-    --ring: 271 76% 68%;
-
-    --radius: 1rem;
-
-    /* Gradient tokens */
-    --gradient-primary: linear-gradient(135deg, hsl(271 76% 68%), hsl(160 84% 39%));
-    --gradient-glow: radial-gradient(circle at 50% 0%, hsl(271 76% 68% / 0.2), transparent 70%);
-    
-    /* Glass effect */
-    --glass-bg: hsla(240, 10%, 8%, 0.7);
-    --glass-border: hsla(0, 0%, 100%, 0.1);
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
   }
 }
 
@@ -97,7 +53,6 @@ All colors MUST be HSL.
   * {
     @apply border-border;
   }
-
   body {
     @apply bg-background text-foreground;
   }
