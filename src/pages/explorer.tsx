@@ -18,6 +18,7 @@ const genreIconMap: Record<string, React.ComponentType<{ className?: string }>> 
   classical: Piano,
   electronic: Drum,
   "hip-hop": Mic,
+  hiphop: Mic,
   rap: Mic,
   country: Guitar,
   folk: Guitar,
@@ -33,8 +34,14 @@ const genreIconMap: Record<string, React.ComponentType<{ className?: string }>> 
   alternative: Guitar,
   metal: Guitar,
   punk: Guitar,
+  latin: Music,
+  rnb: Heart,
+  gospel: Heart,
+  instrumental: Piano,
+  soundtrack: Radio,
   // Add more as needed
 };
+
 
 export default function Explorer(): JSX.Element {
   const [tab, setTab] = useState<"charts" | "genres" | "search">("charts");
@@ -70,7 +77,8 @@ export default function Explorer(): JSX.Element {
     }
     try {
       if (isMountedRef.current) setLoading(true);
-      const featuredTracks = await spotifyProxy.getFeaturedTracks(50);
+      const featuredTracks = await spotifyProxy.getFeaturedTracks(100);
+
       // defensive: ensure we set an array
       if (isMountedRef.current) setTracks(Array.isArray(featuredTracks) ? featuredTracks : []);
     } catch (error: any) {
@@ -96,7 +104,8 @@ export default function Explorer(): JSX.Element {
     if (!spotifyConfigured) return;
     try {
       if (isMountedRef.current) setLoading(true);
-      const genreTracksData = await spotifyProxy.getGenreTracks(genreId, 20);
+      const genreTracksData = await spotifyProxy.getGenreTracks(genreId, 50);
+
       if (isMountedRef.current) {
         setGenreTracks(Array.isArray(genreTracksData) ? genreTracksData : []);
         // set selected genre defensively: find might return undefined -> null
@@ -127,7 +136,8 @@ export default function Explorer(): JSX.Element {
     const handler = setTimeout(async () => {
       try {
         if (isMountedRef.current) setSearchLoading(true);
-        const results = await spotifyProxy.searchTracks(searchQuery.trim(), 20);
+        const results = await spotifyProxy.searchTracks(searchQuery.trim(), 50);
+
         if (isMountedRef.current) setSearchResults(Array.isArray(results) ? results : []);
       } catch (error: any) {
         console.error("Search error:", error);
