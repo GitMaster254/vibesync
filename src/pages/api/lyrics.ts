@@ -9,7 +9,7 @@ const ALLOW_SCRAPING = process.env.LYRICS_ALLOW_SCRAPING === 'true'; // false by
 const LOGGING_ENABLED = process.env.LYRICS_LOGGING_ENABLED !== 'false'; // true by default
 
 // API Keys
-const API_NINJAS_KEY = process.env.API_NINJAS_KEY || 'T5EfLUpjJsIQPTjmYyYyMQ==R0GQHeQ7wuzWHlrv';
+const API_NINJAS_KEY = process.env.API_NINJAS_KEY;
 
 // In-memory cache with TTL
 interface CacheEntry {
