@@ -1,19 +1,24 @@
-import { Heart, Play, Pause, MoreVertical, Trash2, X, Share, Plus, Check, FileText } from "lucide-react";
-import { Track } from "@/lib/db";
-import { usePlayerStore } from "@/store/usePlayerStore";
-import { Button } from "./ui/button";
-import { cn } from "@/lib/utils";
-import { formatTime } from "@/lib/audio";
+import { Heart, Play, Pause, MoreVertical, Trash2, X, Share, Plus, Check, SkipForward } from 'lucide-react';
+import { Track } from '@/lib/db';
+import { usePlayerStore } from '@/store/usePlayerStore';
+import { Button } from './ui/button';
+import { cn } from '@/lib/utils';
+import { formatTime } from '@/lib/audio';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Checkbox } from "./ui/checkbox";
-import { useState, useRef } from "react";
+  DropdownMenuSeparator
+} from '@/components/ui/dropdown-menu';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import { Checkbox } from './ui/checkbox';
+import { useState } from 'react';
 
 export interface Playlist {
   id: string;
@@ -33,16 +38,12 @@ export interface TrackCardProps {
   onToggleFavorite?: (track: Track) => void;
   onDelete?: (track: Track) => void;
   onRemoveFromPlaylist?: (track: Track) => void;
-  // Playlist UI
-  playlists?: Playlist[];
-  onToggleTrackInPlaylist?: (playlistId: string, track: Track) => void;
-  isTrackInPlaylist?: (playlistId: string, trackId: string) => boolean;
-  // Selection mode
-  isInSelectionMode?: boolean;
-  isSelected?: boolean;
-  onToggleSelection?: (trackId: string) => void;
-  // Lyrics
-  onViewLyrics?: (track: Track) => void;
+  playlists: Playlist[];
+  onToggleTrackInPlaylist: (playlistId: string, track: Track) => void;
+  isTrackInPlaylist: (playlistId: string, trackId: string) => boolean;
+  isInSelectionMode: boolean;
+  isSelected: boolean;
+  onToggleSelection: (trackId: string) => void;
 }
 
 /**
@@ -51,8 +52,7 @@ export interface TrackCardProps {
  */
 export function TrackCard({
   track,
-  tracks = [],
-  onPlay,
+  tracks,
   onToggleFavorite,
   onDelete,
   isInSelectionMode = false,
@@ -64,10 +64,9 @@ export function TrackCard({
   onToggleSelection,
   onViewLyrics,
 }: TrackCardProps) {
-  const { currentTrack, isPlaying, playTrack: storePlayTrack, setIsPlaying } = usePlayerStore();
+  const { currentTrack, isPlaying, playTrack, setIsPlaying, playNext } = usePlayerStore();
   const isCurrentTrack = currentTrack?.id === track.id;
   const [isBottomSheetOpen, setIsBottomSheetOpen] = useState(false);
-  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
 
   const handleShare = async () => {
     const shareData = {
@@ -77,12 +76,13 @@ export function TrackCard({
     if (navigator.share) {
       try {
         await navigator.share(shareData);
-      } catch {
-        // ignore
+      } catch (err) {
+        console.error('Share failed:', err);
       }
     } else {
       try {
         await navigator.clipboard.writeText(`${track.title} by ${track.artist}`);
+        // Optionally show a toast notification here
       } catch (error) {
         console.error("Failed to copy text to clipboard:", error);
       }
@@ -93,213 +93,250 @@ export function TrackCard({
     if (isCurrentTrack) {
       setIsPlaying(!isPlaying);
     } else {
-      // local store play for fallback
-      storePlayTrack(track, tracks);
-      // also notify parent if provided
-      onPlay?.(track);
+      playTrack(track, tracks);
     }
   };
 
-  const handleLongPressStart = () => {
-    longPressTimer.current = setTimeout(() => {
-      setIsBottomSheetOpen(true);
-    }, 3000);
-  };
-
-  const handleLongPressEnd = () => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
-  };
-
-  const handleBottomSheetAction = (action: string) => {
+  const handlePlayNext = () => {
+    // Add track to play next in queue
+    playNext?.(track);
     setIsBottomSheetOpen(false);
-    switch (action) {
-      case "play":
-        handlePlay();
-        break;
-      case "favorite":
-        onToggleFavorite?.(track);
-        break;
-      case "share":
-        handleShare();
-        break;
-      case "delete":
-        onDelete?.(track);
-        break;
+  };
+
+  const handleDeleteFromDevice = () => {
+    onDelete?.(track);
+    setIsBottomSheetOpen(false);
+  };
+
+  const handleMoreClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card click
+    setIsBottomSheetOpen(true);
+  };
+
+  const handleCardClick = () => {
+    if (isInSelectionMode) {
+      onToggleSelection(track.id);
+    } else {
+      handlePlay();
     }
   };
 
   return (
-    <Sheet open={isBottomSheetOpen} onOpenChange={setIsBottomSheetOpen}>
-      <SheetTrigger asChild>
-        <div
-          className={cn(
-            "group flex items-center gap-2 sm:gap-3 rounded-lg p-2 sm:p-3 transition-all hover:bg-muted/50 overflow-hidden cursor-pointer",
-            isCurrentTrack && "bg-muted/50",
-            isSelected && "bg-primary/10"
+    <>
+      <div
+        className={cn(
+          'group flex items-center gap-2 sm:gap-3 rounded-lg p-2 sm:p-3 transition-all hover:bg-muted/50 overflow-hidden cursor-pointer',
+          isCurrentTrack && 'bg-muted/50',
+          isSelected && 'bg-primary/10'
+        )}
+        onClick={handleCardClick}
+      >
+        {/* Album art / Play button */}
+        <div className="relative h-12 w-12 sm:h-14 sm:w-14 flex-shrink-0">
+          {track.coverArt ? (
+            <img
+              src={track.coverArt}
+              alt={`${track.title} cover`}
+              className="h-full w-full rounded-lg object-cover"
+              loading="lazy"
+            />
+          ) : (
+            <div className="h-full w-full rounded-lg bg-gradient-primary" />
           )}
-          onTouchStart={handleLongPressStart}
-          onTouchEnd={handleLongPressEnd}
-          onMouseDown={handleLongPressStart}
-          onMouseUp={handleLongPressEnd}
-          onMouseLeave={handleLongPressEnd}
-        >
-          {/* Album art / Play button */}
-          <div className="relative h-12 w-12 sm:h-14 sm:w-14 flex-shrink-0">
-            {track.coverArt ? (
-              <img src={track.coverArt} alt={`${track.title} cover`} className="h-full w-full rounded-lg object-cover" loading="lazy" />
-            ) : (
-              <div className="h-full w-full rounded-lg bg-gradient-primary" />
-            )}
+          {!isInSelectionMode && (
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => {
-                // call both internal and parent handler
+              onClick={(e) => {
+                e.stopPropagation();
                 handlePlay();
-                // If parent prefers to manage play entirely, call onPlay directly too
-                onPlay?.(track);
               }}
               className={cn(
-                "absolute inset-0 h-full w-full bg-black/40 opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100",
-                isCurrentTrack && isPlaying && "opacity-100"
+                'absolute inset-0 h-full w-full bg-black/40 opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100',
+                isCurrentTrack && isPlaying && 'opacity-100'
               )}
             >
               {isCurrentTrack && isPlaying ? (
                 <Pause className="h-6 w-6 text-white" fill="white" />
               ) : (
-                <Play className="h-6 w-6 text-white" fill={isCurrentTrack && !isPlaying ? "white" : "none"} />
+                <Play className="h-6 w-6 text-white" fill={isCurrentTrack && !isPlaying ? 'white' : 'none'} />
               )}
             </Button>
-          </div>
-
-          {/* Track info */}
-          <div className="flex-1 min-w-0 overflow-hidden">
-            <p
-              className={cn("truncate font-semibold text-sm break-all line-clamp-1", isCurrentTrack && "text-primary")}
-            >
-              {track.title}
-            </p>
-            <p className="truncate text-xs text-muted-foreground break-all line-clamp-1">
-              {[track.artist, track.album].filter(Boolean).join(" • ")} • {formatTime(track.duration)}
-            </p>
-          </div>
-
-          {/* Checkbox in selection mode */}
-          {isInSelectionMode && (
-            <Checkbox checked={isSelected} onCheckedChange={() => onToggleSelection?.(track.id)} className="flex-shrink-0" />
           )}
+        </div>
 
-          {/* Actions */}
+        {/* Track info */}
+        <div className="flex-1 min-w-0 overflow-hidden">
+          <p className={cn(
+            'truncate font-semibold text-sm break-all line-clamp-1',
+            isCurrentTrack && 'text-primary'
+          )}>
+            {track.title}
+          </p>
+          <p className="truncate text-xs text-muted-foreground break-all line-clamp-1">
+            {[track.artist, track.album].filter(Boolean).join(' • ')} • {formatTime(track.duration)}
+          </p>
+        </div>
+
+        {/* Checkbox in selection mode */}
+        {isInSelectionMode && (
+          <Checkbox
+            checked={isSelected}
+            onCheckedChange={() => onToggleSelection(track.id)}
+            className="flex-shrink-0"
+            onClick={(e) => e.stopPropagation()}
+          />
+        )}
+
+        {/* Actions - Three dot button */}
+        {!isInSelectionMode && (
           <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
-            {onViewLyrics && (
-              <Button variant="ghost" size="icon" onClick={() => onViewLyrics(track)} className="h-7 w-7 sm:h-8 sm:w-8" title="View lyrics">
-                <FileText className="h-4 w-4 text-muted-foreground" />
-              </Button>
-            )}
-            <Button variant="ghost" size="icon" onClick={() => onToggleFavorite?.(track)} className="h-7 w-7 sm:h-8 sm:w-8">
-              <Heart
-                className={cn("h-4 w-4 transition-colors", track.favorite ? "fill-primary text-primary" : "text-muted-foreground")}
-              />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 sm:h-8 sm:w-8"
+              onClick={handleMoreClick}
+            >
+              <MoreVertical className="h-4 w-4 text-muted-foreground" />
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* Bottom Sheet for Track Options */}
+      <Sheet open={isBottomSheetOpen} onOpenChange={setIsBottomSheetOpen}>
+        <SheetContent side="bottom" className="rounded-t-lg">
+          {/* Custom Header with Track Info */}
+          <div className="flex items-center gap-3 pb-4 border-b border-border mb-4">
+            {/* Album Artwork */}
+            <div className="h-14 w-14 flex-shrink-0 rounded-lg overflow-hidden">
+              {track.coverArt ? (
+                <img
+                  src={track.coverArt}
+                  alt={`${track.title} cover`}
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                />
+              ) : (
+                <div className="h-full w-full bg-gradient-primary" />
+              )}
+            </div>
+            
+            {/* Track Info */}
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-base truncate">{track.title}</h3>
+              <p className="text-sm text-muted-foreground truncate">{track.artist}</p>
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            {/* Play */}
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
+              onClick={() => {
+                handlePlay();
+                setIsBottomSheetOpen(false);
+              }}
+            >
+              {isCurrentTrack && isPlaying ? (
+                <Pause className="mr-2 h-4 w-4" />
+              ) : (
+                <Play className="mr-2 h-4 w-4" />
+              )}
+              {isCurrentTrack && isPlaying ? 'Pause' : 'Play'}
             </Button>
 
+            {/* Play Next */}
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
+              onClick={handlePlayNext}
+            >
+              <SkipForward className="mr-2 h-4 w-4" />
+              Play Next
+            </Button>
+            {/* Add to Playlist */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7 sm:h-8 sm:w-8">
-                  <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                <Button variant="ghost" className="w-full justify-start">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add to Playlist
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="min-w-[10rem] sm:min-w-[12rem]">
-                <DropdownMenuItem onClick={handleShare}>
-                  <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path d="M4 12v-2a8 8 0 018-8h0a8 8 0 018 8v2" />
-                    <path d="M16 12l-4-4-4 4" />
-                  </svg>
-                  Share
-                </DropdownMenuItem>
-                {(onRemoveFromPlaylist || onDelete) && <DropdownMenuSeparator />}
-                {onRemoveFromPlaylist && (
-                  <DropdownMenuItem onClick={() => onRemoveFromPlaylist(track)}>
-                    <X className="mr-2 h-4 w-4" /> Remove from playlist
-                  </DropdownMenuItem>
-                )}
-                {onDelete && (
-                  <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={() => onDelete(track)}>
-                    <Trash2 className="mr-2 h-4 w-4" /> Delete from library
+              <DropdownMenuContent align="start" className="min-w-[12rem]">
+                {playlists?.length > 0 ? (
+                  playlists.map((playlist) => (
+                    <DropdownMenuItem
+                      key={playlist.id}
+                      onClick={() => {
+                        onToggleTrackInPlaylist(playlist.id, track);
+                        setIsBottomSheetOpen(false);
+                      }}
+                    >
+                      <Check className={cn(
+                        'mr-2 h-4 w-4',
+                        isTrackInPlaylist(playlist.id, track.id) ? 'opacity-100' : 'opacity-0'
+                      )} />
+                      {playlist.name}
+                    </DropdownMenuItem>
+                  ))
+                ) : (
+                  <DropdownMenuItem disabled>
+                    No playlists available
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
-          </div>
-        </div>
-      </SheetTrigger>
 
-      <SheetContent side="bottom" className="rounded-t-lg">
-        <SheetHeader>
-          <SheetTitle>Track Options</SheetTitle>
-        </SheetHeader>
-        <div className="space-y-4 mt-4">
-          <Button variant="ghost" className="w-full justify-start" onClick={() => handleBottomSheetAction("play")}>
-            <Play className="mr-2 h-4 w-4" />
-            Play
-          </Button>
-          <Button variant="ghost" className="w-full justify-start" onClick={() => handleBottomSheetAction("favorite")}>
-            <Heart className="mr-2 h-4 w-4" />
-            {track.favorite ? "Unfavorite" : "Favorite"}
-          </Button>
+            {/* Share */}
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
+              onClick={() => {
+                handleShare();
+                setIsBottomSheetOpen(false);
+              }}
+            >
+              <Share className="mr-2 h-4 w-4" />
+              Share
+            </Button>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="w-full justify-start">
-                <Plus className="mr-2 h-4 w-4" />
-                Add to Playlist
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-[12rem]">
-              {playlists?.map((playlist) => (
-                <DropdownMenuItem
-                  key={playlist.id}
+            {/* Remove from Playlist (if applicable) */}
+            {onRemoveFromPlaylist && (
+              <>
+                <DropdownMenuSeparator />
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start text-orange-600 hover:text-orange-600"
                   onClick={() => {
-                    onToggleTrackInPlaylist?.(playlist.id, track);
+                    onRemoveFromPlaylist(track);
                     setIsBottomSheetOpen(false);
                   }}
                 >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      isTrackInPlaylist?.(playlist.id, track.id) ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                  {playlist.name}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                  <X className="mr-2 h-4 w-4" />
+                  Remove from Playlist
+                </Button>
+              </>
+            )}
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="w-full justify-start">
-                <MoreVertical className="mr-2 h-4 w-4" />
-                More
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-[12rem]">
-              <DropdownMenuItem onClick={() => handleBottomSheetAction("share")}>
-                <Share className="mr-2 h-4 w-4" />
-                Share
-              </DropdownMenuItem>
-              {onDelete && (
-                <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={() => handleBottomSheetAction("delete")}>
+            {/* Delete from Device */}
+            {onDelete && (
+              <>
+                <DropdownMenuSeparator />
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start text-red-600 hover:text-red-600"
+                  onClick={handleDeleteFromDevice}
+                >
                   <Trash2 className="mr-2 h-4 w-4" />
-                  Delete
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </SheetContent>
-    </Sheet>
+                  Delete from Device
+                </Button>
+              </>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+    </>
   );
 }

@@ -72,9 +72,6 @@ export default function RecentlyPlayed() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex items-center gap-3">
-            <div className="rounded-xl bg-gradient-to-br from-purple-500 to-purple-700 p-3">
-              <Clock className="h-8 w-8 text-white" />
-            </div>
             <div>
               <h1 className="text-2xl font-bold">Recently Played</h1>
               <p className="text-sm text-muted-foreground">{tracks.length} tracks</p>

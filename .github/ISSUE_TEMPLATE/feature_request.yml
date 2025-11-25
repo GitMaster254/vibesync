@@ -1,0 +1,83 @@
+name: "Feature request"
+description: "Suggest an enhancement, new feature, or improvement for vibesync."
+title: "[FEATURE] {{summary}}"
+labels:
+  - "enhancement"
+  - "needs-triage"
+assignees: []
+body:
+  - type: input
+    id: summary
+    attributes:
+      label: "Summary"
+      description: "A concise description of the requested feature."
+      placeholder: "e.g. Add X integration"
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: "Problem / Use case"
+      description: "Explain the problem this feature would solve and who benefits. Include real-world examples or scenarios."
+      required: true
+
+  - type: textarea
+    id: proposed_solution
+    attributes:
+      label: "Proposed solution"
+      description: "Describe the proposed solution and how it would work at a high level. Include API sketches, CLI examples, or UI mockups if relevant."
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: "Alternatives considered"
+      description: "List alternatives you've considered and why they're insufficient."
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: "Acceptance criteria"
+      description: "Define what success looks like (clear, testable criteria). Example:\n- Public API supports X\n- Unit tests for Y\n- Documentation updated"
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: "Possible impact / migration"
+      description: "Describe compatibility concerns, migration steps, or performance considerations."
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: "Priority"
+      options:
+        - "Low"
+        - "Medium"
+        - "High"
+      description: "How important is this feature?"
+
+  - type: dropdown
+    id: effort
+    attributes:
+      label: "Estimated effort"
+      options:
+        - "Small"
+        - "Medium"
+        - "Large"
+        - "Unknown"
+
+  - type: input
+    id: related
+    attributes:
+      label: "Related issues / PRs"
+      description: "Link any related issues, PRs, or external references."
+
+  - type: input
+    id: contact
+    attributes:
+      label: "Contact (optional)"
+      description: "Your contact (email or handle) if you'd like follow-up."
+
+  - type: markdown
+    attributes:
+      value: |
+        Thanks — good feature requests explain the problem, a proposed approach, and acceptance criteria.
