@@ -37,6 +37,49 @@ async function jamendoFetch(endpoint: string, params: Record<string, string> = {
   return json;
 }
 
+function transformSpotifyTrack(track: any): ExplorerTrack {
+  if (!track || typeof track !== 'object') {
+    console.error('Invalid track data:', track);
+    throw new Error('Invalid track data received from Spotify');
+  }
+
+  // Validate required fields
+  if (!track.id || !track.name) {
+    console.error('Missing required fields in track:', track);
+    throw new Error('Missing required track information');
+  }
+
+  // Get the best available image
+  const coverArt = track.album?.images?.[0]?.url || 
+                  track.images?.[0]?.url ||
+                  undefined;
+
+  // Get preview URL and create proxied URL if available
+  const previewUrl = track.preview_url;
+  const streamUrl = previewUrl ? createStreamUrl(previewUrl) : undefined;
+
+  // Log preview URL status for debugging
+  if (!previewUrl) {
+    console.log(`No preview URL available for track: ${track.name}`);
+  }
+
+  const transformedTrack = {
+    id: track.id,
+    title: track.name,
+    artist: track.artists?.map((a: any) => a.name).join(', ') || 'Unknown Artist',
+    album: track.album?.name,
+    coverArt,
+    previewUrl: streamUrl, // Use the proxied URL
+    duration: track.duration_ms,
+    externalUrl: track.external_urls?.spotify,
+  };
+
+  // Log transformed track for debugging
+  console.log('Transformed track:', transformedTrack);
+  
+  return transformedTrack;
+}
+
 export const spotifyProxy = {
   async getFeaturedTracks(limit: number = 100): Promise<ExplorerTrack[]> {
     const data = await jamendoFetch('tracks', {

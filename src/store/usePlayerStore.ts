@@ -20,7 +20,19 @@ interface PlayerState {
   // Playback modes
   shuffle: boolean;
   repeat: 'none' | 'one' | 'all';
-  
+
+  // Audio processing
+  equalizer: {
+    enabled: boolean;
+    bands: number[]; // 10 bands: 32, 64, 125, 250, 500, 1k, 2k, 4k, 8k, 16k Hz
+    presets: { [key: string]: number[] };
+  };
+  effects: {
+    reverb: { enabled: boolean; wet: number; decay: number; preDelay: number };
+    delay: { enabled: boolean; wet: number; time: number; feedback: number };
+    distortion: { enabled: boolean; wet: number; amount: number; };
+  };
+
   // UI state
   isPlayerVisible: boolean;
   
@@ -39,6 +51,17 @@ interface PlayerState {
   playTrack: (track: Track, tracks?: Track[]) => void;
   togglePlayer: () => void;
   reset: () => void;
+
+  // Audio processing actions
+  setEqualizerEnabled: (enabled: boolean) => void;
+  setEqualizerBand: (bandIndex: number, value: number) => void;
+  setEqualizerPreset: (preset: string) => void;
+  setReverbEnabled: (enabled: boolean) => void;
+  setReverbParams: (params: Partial<PlayerState['effects']['reverb']>) => void;
+  setDelayEnabled: (enabled: boolean) => void;
+  setDelayParams: (params: Partial<PlayerState['effects']['delay']>) => void;
+  setDistortionEnabled: (enabled: boolean) => void;
+  setDistortionParams: (params: Partial<PlayerState['effects']['distortion']>) => void;
 }
 
 export const usePlayerStore = create<PlayerState>((set, get) => ({
@@ -52,6 +75,25 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   queueIndex: 0,
   shuffle: false,
   repeat: 'none',
+  equalizer: {
+    enabled: false,
+    bands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], // Flat response
+    presets: {
+      'Flat': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      'Rock': [2, 1, 0, -1, -2, 0, 1, 2, 3, 4],
+      'Pop': [-1, 0, 2, 3, 2, 0, -1, -2, -1, 1],
+      'Jazz': [3, 2, 1, 2, -1, -2, 0, 1, 2, 3],
+      'Classical': [2, 2, 1, 0, 0, 0, -1, -1, -1, 0],
+      'Electronic': [4, 3, 0, -2, -3, 0, 2, 4, 5, 6],
+      'Hip Hop': [3, 2, 0, -1, -2, 1, 2, 3, 4, 5],
+      'Vocal': [1, 2, 3, 2, 0, -1, -2, -1, 0, 1],
+    },
+  },
+  effects: {
+    reverb: { enabled: false, wet: 0.3, decay: 2.0, preDelay: 0.1 },
+    delay: { enabled: false, wet: 0.3, time: 0.3, feedback: 0.4 },
+    distortion: { enabled: false, wet: 0.5, amount: 0.8 },
+  },
   isPlayerVisible: false,
   
   // Basic setters
@@ -168,4 +210,39 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     queue: [],
     queueIndex: 0,
   }),
+
+  // Audio processing actions
+  setEqualizerEnabled: (enabled) => set((state) => ({
+    equalizer: { ...state.equalizer, enabled }
+  })),
+  setEqualizerBand: (bandIndex, value) => set((state) => {
+    const newBands = [...state.equalizer.bands];
+    newBands[bandIndex] = Math.max(-20, Math.min(20, value));
+    return { equalizer: { ...state.equalizer, bands: newBands } };
+  }),
+  setEqualizerPreset: (preset) => set((state) => {
+    const presetValues = state.equalizer.presets[preset];
+    if (presetValues) {
+      return { equalizer: { ...state.equalizer, bands: [...presetValues] } };
+    }
+    return state;
+  }),
+  setReverbEnabled: (enabled) => set((state) => ({
+    effects: { ...state.effects, reverb: { ...state.effects.reverb, enabled } }
+  })),
+  setReverbParams: (params) => set((state) => ({
+    effects: { ...state.effects, reverb: { ...state.effects.reverb, ...params } }
+  })),
+  setDelayEnabled: (enabled) => set((state) => ({
+    effects: { ...state.effects, delay: { ...state.effects.delay, enabled } }
+  })),
+  setDelayParams: (params) => set((state) => ({
+    effects: { ...state.effects, delay: { ...state.effects.delay, ...params } }
+  })),
+  setDistortionEnabled: (enabled) => set((state) => ({
+    effects: { ...state.effects, distortion: { ...state.effects.distortion, enabled } }
+  })),
+  setDistortionParams: (params) => set((state) => ({
+    effects: { ...state.effects, distortion: { ...state.effects.distortion, ...params } }
+  })),
 }));

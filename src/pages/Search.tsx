@@ -12,39 +12,91 @@ import {
   CommandShortcut,
 } from '@/components/ui/command';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { getAllPlaylists, getAllTracks, Playlist, Track } from '@/lib/db';
+import { spotifyProxy, ExplorerTrack } from '@/lib/spotify-proxy';
+import { getAllPlaylists, Playlist } from '@/lib/db';
 import { usePlayerStore } from '@/store/usePlayerStore';
+
+// Local useDebounce implementation to avoid missing module import
+function useDebounce<T>(value: T, delay = 300): T {
+  const [debounced, setDebounced] = React.useState<T>(value);
+
+  React.useEffect(() => {
+    const handler = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+
+  return debounced;
+}
 
 export default function Search() {
   const playTrack = usePlayerStore((s) => s.playTrack);
   const navigate = useNavigate();
   const [query, setQuery] = React.useState('');
-  const [tracks, setTracks] = React.useState<Track[]>([]);
+  const [tracks, setTracks] = React.useState<ExplorerTrack[]>([]);
   const [playlists, setPlaylists] = React.useState<Playlist[]>([]);
+  const [isLoading, setIsLoading] = React.useState(false);
+  const debouncedQuery = useDebounce(query, 300);
 
   React.useEffect(() => {
-    // Load once when entering search page
-    Promise.all([getAllTracks(), getAllPlaylists()]).then(([t, p]) => {
-      setTracks(t);
-      setPlaylists(p);
-    });
+    // Load playlists once when entering search page
+    getAllPlaylists().then(setPlaylists);
   }, []);
 
+  React.useEffect(() => {
+    async function searchSpotify() {
+      if (!debouncedQuery.trim()) {
+        setTracks([]);
+        return;
+      }
+
+      setIsLoading(true);
+      try {
+        const results = await spotifyProxy.searchTracks(debouncedQuery);
+        setTracks(results);
+      } catch (error) {
+        console.error('Search failed:', error);
+        setTracks([]);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    searchSpotify();
+  }, [debouncedQuery]);
+
+  // Filter playlists locally
   const q = query.trim().toLowerCase();
   const match = React.useCallback((text?: string) => (text || '').toLowerCase().includes(q), [q]);
-
-  const filteredTracks = React.useMemo(() => {
-    if (!q) return tracks.slice(0, 20);
-    return tracks.filter((t) => match(t.title) || match(t.artist) || match(t.album) || match(t.genre)).slice(0, 50);
-  }, [tracks, q, match]);
-
+  
   const filteredPlaylists = React.useMemo(() => {
     if (!q) return playlists.slice(0, 10);
     return playlists.filter((p) => match(p.name) || match(p.description)).slice(0, 50);
   }, [playlists, q, match]);
 
-  function handleSelectTrack(track: Track) {
-    playTrack(track, [track]);
+  function handleSelectTrack(track: ExplorerTrack) {
+    const mappedTrack = {
+      id: track.id,
+      title: track.title,
+      artist: track.artist,
+      album: track.album || '',
+      duration: track.duration || 0,
+      fileUrl: track.previewUrl || '',
+      favorite: false,
+      addedAt: new Date(),
+      blob: new File([], track.title), // Empty file since we're streaming from Spotify
+      coverArt: track.coverArt,
+      // Optional fields
+      year: undefined,
+      trackNumber: null,
+      genre: undefined,
+      bitrate: undefined,
+      sampleRate: undefined,
+      codec: undefined,
+      playCount: 0,
+      lastPlayed: undefined
+    };
+    
+    playTrack(mappedTrack, [mappedTrack]);
   }
 
   function handleSelectPlaylist(pl: Playlist) {
@@ -85,19 +137,36 @@ export default function Search() {
               <TabsContent value="all" className="m-0">
                 <Command>
                   <CommandList className="max-h-none">
-                    <CommandEmpty>No results found.</CommandEmpty>
+                    <CommandEmpty>
+                      {isLoading ? (
+                        <div className="py-6 text-center text-sm text-muted-foreground">
+                          Searching Spotify...
+                        </div>
+                      ) : (
+                        'No results found.'
+                      )}
+                    </CommandEmpty>
                     <CommandGroup heading="Tracks">
-                      {filteredTracks.map((t) => (
+                      {tracks.map((t) => (
                         <CommandItem
                           key={t.id}
                           value={`track:${t.title} ${t.artist ?? ''} ${t.album ?? ''} ${t.genre ?? ''}`}
                           onSelect={() => handleSelectTrack(t)}
                         >
-                          <div className="flex min-w-0 flex-col">
-                            <span className="truncate">{t.title}</span>
-                            <span className="truncate text-xs text-muted-foreground">
-                              {t.artist || 'Unknown artist'}{t.album ? ` • ${t.album}` : ''}
-                            </span>
+                          <div className="flex items-center gap-3">
+                            {t.coverArt && (
+                              <img 
+                                src={t.coverArt} 
+                                alt={t.title}
+                                className="h-10 w-10 rounded-md object-cover"
+                              />
+                            )}
+                            <div className="flex min-w-0 flex-col">
+                              <span className="truncate">{t.title}</span>
+                              <span className="truncate text-xs text-muted-foreground">
+                                {t.artist || 'Unknown artist'}{t.album ? ` • ${t.album}` : ''}
+                              </span>
+                            </div>
                           </div>
                           <CommandShortcut>Enter</CommandShortcut>
                         </CommandItem>
@@ -126,19 +195,36 @@ export default function Search() {
               <TabsContent value="tracks" className="m-0">
                 <Command>
                   <CommandList className="max-h-none">
-                    <CommandEmpty>No tracks found.</CommandEmpty>
+                    <CommandEmpty>
+                      {isLoading ? (
+                        <div className="py-6 text-center text-sm text-muted-foreground">
+                          Searching Spotify...
+                        </div>
+                      ) : (
+                        'No tracks found.'
+                      )}
+                    </CommandEmpty>
                     <CommandGroup>
-                      {filteredTracks.map((t) => (
+                      {tracks.map((t) => (
                         <CommandItem
                           key={t.id}
                           value={`track:${t.title} ${t.artist ?? ''} ${t.album ?? ''} ${t.genre ?? ''}`}
                           onSelect={() => handleSelectTrack(t)}
                         >
-                          <div className="flex min-w-0 flex-col">
-                            <span className="truncate">{t.title}</span>
-                            <span className="truncate text-xs text-muted-foreground">
-                              {t.artist || 'Unknown artist'}{t.album ? ` • ${t.album}` : ''}
-                            </span>
+                          <div className="flex items-center gap-3">
+                            {t.coverArt && (
+                              <img 
+                                src={t.coverArt} 
+                                alt={t.title}
+                                className="h-10 w-10 rounded-md object-cover"
+                              />
+                            )}
+                            <div className="flex min-w-0 flex-col">
+                              <span className="truncate">{t.title}</span>
+                              <span className="truncate text-xs text-muted-foreground">
+                                {t.artist || 'Unknown artist'}{t.album ? ` • ${t.album}` : ''}
+                              </span>
+                            </div>
                           </div>
                           <CommandShortcut>Enter</CommandShortcut>
                         </CommandItem>
