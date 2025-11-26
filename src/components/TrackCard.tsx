@@ -1,4 +1,4 @@
-import { Heart, Play, Pause, MoreVertical, Trash2, X, Share, Plus, Check, SkipForward } from 'lucide-react';
+import { Heart, Play, Pause, MoreVertical, Trash2, X, Share, Plus, Check, SkipForward, FileText } from 'lucide-react';
 import { Track } from '@/lib/db';
 import { usePlayerStore } from '@/store/usePlayerStore';
 import { Button } from './ui/button';
@@ -34,6 +34,8 @@ export interface TrackCardProps {
   tracks?: Track[]; // optional: parent might not pass full list
   // Playback
   onPlay?: (track: Track) => void; // <-- recommended shape (parent receives the track)
+  // Lyrics
+  onViewLyrics?: (track: Track) => void;
   // Library actions
   onToggleFavorite?: (track: Track) => void;
   onDelete?: (track: Track) => void;
@@ -63,6 +65,7 @@ export function TrackCard({
   isTrackInPlaylist,
   onToggleSelection,
   onViewLyrics,
+  onPlay,
 }: TrackCardProps) {
   const { currentTrack, isPlaying, playTrack, setIsPlaying, playNext } = usePlayerStore();
   const isCurrentTrack = currentTrack?.id === track.id;
@@ -90,7 +93,9 @@ export function TrackCard({
   };
 
   const handlePlay = () => {
-    if (isCurrentTrack) {
+    if (onPlay) {
+      onPlay(track);
+    } else if (isCurrentTrack) {
       setIsPlaying(!isPlaying);
     } else {
       playTrack(track, tracks);
@@ -188,9 +193,24 @@ export function TrackCard({
           />
         )}
 
-        {/* Actions - Three dot button */}
+        {/* Actions - Lyrics and More button */}
         {!isInSelectionMode && (
           <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
+            {/* Lyrics Button */}
+            {onViewLyrics && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 sm:h-8 sm:w-8"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onViewLyrics(track);
+                }}
+                title="View lyrics"
+              >
+                <FileText className="h-4 w-4 text-muted-foreground" />
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="icon"

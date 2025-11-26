@@ -67,9 +67,14 @@ export function getAudioAnalyser(fftSize: number = 256, smoothing: number = 0.8)
     // Initialize audio processing chain
     initializeAudioProcessingChain();
 
-    // Connect source to analyser and processing chain
+    // Connect source to analyser for visualization
     globalMediaSource.connect(globalAnalyser);
-    globalMediaSource.connect(globalDryGain!);
+    
+    // For basic playback, connect source directly to destination
+    // This ensures audio works without complex processing
+    globalMediaSource.connect(globalAudioContext.destination);
+    
+    // Analyser will be used only for visualization, not audio processing
     globalAnalyser.connect(globalAudioContext.destination);
   } else {
     // Update analyser settings if they changed
@@ -115,15 +120,18 @@ function initializeAudioProcessingChain() {
   globalDryGain.gain.value = 1;
   globalMasterGain.gain.value = 1;
 
-  // Connect dry path
+  // Connect dry path through equalizer if available
   if (globalEqualizerFilters.length > 0) {
     globalEqualizerFilters[globalEqualizerFilters.length - 1].connect(globalDryGain);
+  } else {
+    // If no equalizer, connect directly
+    globalDryGain.connect(globalMasterGain);
   }
 
-  // Connect to master output
-  globalDryGain.connect(globalMasterGain);
+  // Connect wet path (effects) to master
   globalWetGain.connect(globalMasterGain);
-  globalMasterGain.connect(globalAudioContext.destination);
+  
+  // Master gain will be connected to destination in getAudioAnalyser
 }
 
 /**

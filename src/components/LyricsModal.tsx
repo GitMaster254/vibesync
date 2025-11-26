@@ -39,6 +39,20 @@ export function LyricsModal({ artist, title, trigger, className, open: controlle
     setLoading(true);
     setError(null);
 
+    // Show search online option quickly after 2 seconds even if API is still loading
+    const earlyFallbackTimeout = setTimeout(() => {
+      const earlyData: LyricsResponse = {
+        found: false,
+        lyrics: '',
+        message: `LYRICS NOT FOUND 🔜\nYou can still search "${title}" by ${artist} for this song's lyrics online.`,
+        source: 'early-fallback',
+        cached: false,
+        durationMs: 0,
+        errors: []
+      };
+      setLyrics(earlyData);
+    }, 2000); // 2 second early fallback
+
     try {
       // In development, call API directly since serverless functions don't run locally
       const isDevelopment = import.meta.env.DEV;
@@ -46,7 +60,19 @@ export function LyricsModal({ artist, title, trigger, className, open: controlle
         ? `https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`
         : `/api/lyrics?${new URLSearchParams({ artist, title })}`;
 
-      const response = await fetch(apiUrl);
+      // Add timeout to prevent long loading times
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
+      const response = await fetch(apiUrl, {
+        signal: controller.signal,
+        headers: {
+          'Accept': 'application/json',
+        }
+      });
+
+      clearTimeout(timeoutId);
+      clearTimeout(earlyFallbackTimeout); // Clear early fallback if API responded
 
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
@@ -77,9 +103,24 @@ export function LyricsModal({ artist, title, trigger, className, open: controlle
 
       setLyrics(data);
     } catch (err: any) {
+      clearTimeout(earlyFallbackTimeout); // Clear early fallback on error
       console.error('Lyrics fetch error:', err);
-      setError(err.message || 'Failed to fetch lyrics');
-      toast.error('Failed to load lyrics');
+      // If it's a timeout or network error, create a "not found" response instead of error
+      if (err.name === 'AbortError' || err.message.includes('fetch')) {
+        const timeoutData: LyricsResponse = {
+          found: false,
+          lyrics: '',
+          message: `LYRICS NOT FOUND 🔜\nYou can still search "${title}" by ${artist} for this song's lyrics online.`,
+          source: 'timeout',
+          cached: false,
+          durationMs: 0,
+          errors: [{ source: 'network', message: 'Request timeout' }]
+        };
+        setLyrics(timeoutData);
+      } else {
+        setError(err.message || 'Failed to fetch lyrics');
+        toast.error('Failed to load lyrics');
+      }
     } finally {
       setLoading(false);
     }
@@ -149,7 +190,8 @@ export function LyricsModal({ artist, title, trigger, className, open: controlle
       return (
         <div className="flex flex-col items-center justify-center py-12">
           <RefreshCw className="h-8 w-8 animate-spin text-primary mb-4" />
-          <p className="text-muted-foreground">Loading lyrics...</p>
+          <p className="text-muted-foreground">Searching for lyrics...</p>
+          <p className="text-xs text-muted-foreground mt-1">If this takes too long, you can search online</p>
         </div>
       );
     }

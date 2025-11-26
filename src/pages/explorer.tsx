@@ -142,7 +142,19 @@ export default function Explorer(): JSX.Element {
   }, [searchQuery, spotifyConfigured]);
 
   const handlePlay = useCallback((track: ExplorerTrack): void => {
-    const playerTrack = { ...track, fileUrl: (track as any).previewUrl ?? "", blob: undefined } as any;
+    // Convert explorer track to player track format
+    const playerTrack = {
+      id: track.id,
+      title: track.title,
+      artist: track.artist,
+      album: track.album || '',
+      duration: track.duration || 0,
+      fileUrl: (track as any).previewUrl || '',
+      blob: undefined,
+      coverArt: track.coverArt,
+      favorite: false,
+      addedAt: new Date(),
+    };
     playTrack(playerTrack, [playerTrack]);
   }, [playTrack]);
 
@@ -214,7 +226,18 @@ export default function Explorer(): JSX.Element {
               <div className="space-y-3">
                 {tracks.map((track, index) => (
                   <motion.div key={track.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.05 }}>
-                    <TrackCard track={track as any} tracks={tracks as any[]} onPlay={() => handlePlay(track)} onViewLyrics={() => handleViewLyrics(track)} />
+                    <TrackCard
+                      track={track as any}
+                      tracks={tracks as any[]}
+                      onPlay={() => handlePlay(track)}
+                      onViewLyrics={() => handleViewLyrics(track)}
+                      playlists={[]}
+                      onToggleTrackInPlaylist={() => {}}
+                      isTrackInPlaylist={() => false}
+                      isInSelectionMode={false}
+                      isSelected={false}
+                      onToggleSelection={() => {}}
+                    />
                   </motion.div>
                 ))}
                 <div className="text-center">
@@ -241,7 +264,18 @@ export default function Explorer(): JSX.Element {
                   <div className="space-y-3">
                     {genreTracks.map((track, index) => (
                       <motion.div key={track.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.05 }}>
-                        <TrackCard track={track as any} tracks={genreTracks as any[]} onPlay={() => handlePlay(track)} onViewLyrics={() => handleViewLyrics(track)} />
+                        <TrackCard
+                          track={track as any}
+                          tracks={genreTracks as any[]}
+                          onPlay={() => handlePlay(track)}
+                          onViewLyrics={() => handleViewLyrics(track)}
+                          playlists={[]}
+                          onToggleTrackInPlaylist={() => {}}
+                          isTrackInPlaylist={() => false}
+                          isInSelectionMode={false}
+                          isSelected={false}
+                          onToggleSelection={() => {}}
+                        />
                       </motion.div>
                     ))}
                   </div>
@@ -289,7 +323,18 @@ export default function Explorer(): JSX.Element {
               <div className="space-y-3">
                 {searchResults.map((track, index) => (
                   <motion.div key={track.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.05 }}>
-                    <TrackCard track={track as any} tracks={searchResults as any[]} onPlay={() => handlePlay(track)} onViewLyrics={() => handleViewLyrics(track)} />
+                    <TrackCard
+                      track={track as any}
+                      tracks={searchResults as any[]}
+                      onPlay={() => handlePlay(track)}
+                      onViewLyrics={() => handleViewLyrics(track)}
+                      playlists={[]}
+                      onToggleTrackInPlaylist={() => {}}
+                      isTrackInPlaylist={() => false}
+                      isInSelectionMode={false}
+                      isSelected={false}
+                      onToggleSelection={() => {}}
+                    />
                   </motion.div>
                 ))}
               </div>
