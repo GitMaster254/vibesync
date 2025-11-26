@@ -81,7 +81,7 @@ function transformSpotifyTrack(track: any): ExplorerTrack {
 }
 
 export const spotifyProxy = {
-  async getFeaturedTracks(limit: number = 100): Promise<ExplorerTrack[]> {
+  async getFeaturedTracks(limit: number = 50): Promise<ExplorerTrack[]> {
     const data = await jamendoFetch('tracks', {
       limit: limit.toString(),
       order: 'popularity_total',
@@ -89,7 +89,6 @@ export const spotifyProxy = {
       // Prioritize African content in featured tracks
       geotags: 'africa,kenya,nigeria,south africa,ghana,uganda,tanzania',
     });
-
 
     const results = data.results ?? [];
     return results.map((track: any) => ({
@@ -122,33 +121,16 @@ export const spotifyProxy = {
       { id: 'african', name: 'African' },
       { id: 'world', name: 'World Music' },
       { id: 'traditional', name: 'Traditional' },
-      { id: 'metal', name: 'Metal' },
-      { id: 'punk', name: 'Punk' },
-      { id: 'indie', name: 'Indie' },
-      { id: 'alternative', name: 'Alternative' },
-      { id: 'techno', name: 'Techno' },
-      { id: 'house', name: 'House' },
-      { id: 'ambient', name: 'Ambient' },
-      { id: 'soul', name: 'Soul' },
-      { id: 'funk', name: 'Funk' },
-      { id: 'disco', name: 'Disco' },
-      { id: 'latin', name: 'Latin' },
-      { id: 'rnb', name: 'R&B' },
-      { id: 'gospel', name: 'Gospel' },
-      { id: 'instrumental', name: 'Instrumental' },
-      { id: 'soundtrack', name: 'Soundtrack' },
     ];
   },
 
-
-  async getGenreTracks(genreId: string, limit: number = 50): Promise<ExplorerTrack[]> {
+  async getGenreTracks(genreId: string, limit: number = 20): Promise<ExplorerTrack[]> {
     const data = await jamendoFetch('tracks', {
       tags: genreId,
       limit: limit.toString(),
       order: 'popularity_total',
       include: 'musicinfo',
     });
-
 
     const results = data.results ?? [];
     return results.map((track: any) => ({
@@ -171,7 +153,6 @@ export const spotifyProxy = {
       // Add location-based search for African content
       geotags: 'africa,kenya,nigeria,south africa,ghana,uganda,tanzania',
     });
-
 
     const results = data.results ?? [];
     return results.map((track: any) => ({

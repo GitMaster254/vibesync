@@ -46,17 +46,7 @@ export function LyricsModal({ artist, title, trigger, className, open: controlle
         ? `https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`
         : `/api/lyrics?${new URLSearchParams({ artist, title })}`;
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
-
-      const response = await fetch(apiUrl, {
-        signal: controller.signal,
-        headers: {
-          'User-Agent': 'VibeSync/1.0'
-        }
-      });
-
-      clearTimeout(timeoutId);
+      const response = await fetch(apiUrl);
 
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
@@ -88,11 +78,7 @@ export function LyricsModal({ artist, title, trigger, className, open: controlle
       setLyrics(data);
     } catch (err: any) {
       console.error('Lyrics fetch error:', err);
-      if (err.name === 'AbortError') {
-        setError('Request timed out. Please try again.');
-      } else {
-        setError(err.message || 'Failed to fetch lyrics');
-      }
+      setError(err.message || 'Failed to fetch lyrics');
       toast.error('Failed to load lyrics');
     } finally {
       setLoading(false);
@@ -174,19 +160,10 @@ export function LyricsModal({ artist, title, trigger, className, open: controlle
           <AlertCircle className="h-12 w-12 text-destructive mb-4" />
           <h3 className="text-lg font-semibold mb-2">Error Loading Lyrics</h3>
           <p className="text-sm text-muted-foreground mb-4">{error}</p>
-          <div className="flex gap-2">
-            <Button onClick={handleRetry} variant="outline">
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Try Again
-            </Button>
-            <Button
-              onClick={() => window.open(`https://www.google.com/search?q=lyrics+${encodeURIComponent(title)}+${encodeURIComponent(artist)}`, '_blank')}
-              variant="outline"
-            >
-              <ExternalLink className="h-4 w-4 mr-2" />
-              Search Online
-            </Button>
-          </div>
+          <Button onClick={handleRetry} variant="outline">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Try Again
+          </Button>
         </div>
       );
     }
@@ -240,12 +217,11 @@ export function LyricsModal({ artist, title, trigger, className, open: controlle
               Share
             </Button>
             <Button
-              onClick={() => window.open(`https://www.google.com/search?q=lyrics+${encodeURIComponent(title)}+${encodeURIComponent(artist)}`, '_blank')}
+              onClick={() => window.open(`https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`, '_blank')}
               size="sm"
               variant="outline"
             >
-              <ExternalLink className="h-4 w-4 mr-2" />
-              Search Online
+              <ExternalLink className="h-4 w-4" />
             </Button>
           </div>
         </div>
