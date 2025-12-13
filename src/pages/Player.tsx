@@ -202,7 +202,7 @@ export default function Player() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4 }}
-            className="px-8 pb-4 mt-4 overflow-y-auto max-h-[calc(100vh-500px)]"
+            className="w-full max-w-lg p-4" 
           >
             <div className="bg-background/80 backdrop-blur-sm rounded-lg border border-border p-4">
               <ListeningParty
