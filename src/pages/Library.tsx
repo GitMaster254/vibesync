@@ -630,15 +630,6 @@ export default function Library() {
                   {tab === "playlists" && `(${filteredPlaylists.length} playlists)`}
                 </span>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleSearchClose}
-                className="h-8 px-2"
-              >
-                <X className="h-3 w-3 mr-1" />
-                Clear
-              </Button>
             </div>
           </motion.div>
         )}
