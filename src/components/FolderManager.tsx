@@ -147,13 +147,7 @@ const FolderManager: React.FC<FolderManagerProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h2 className="text-xl sm:text-2xl font-bold">Music Folders</h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Manage your imported music folders
-          </p>
         </div>
-        <Badge variant="secondary" className="px-3 py-1">
-          {folders.length} folder{folders.length !== 1 ? 's' : ''}
-        </Badge>
       </div>
 
       {/* Empty state */}
