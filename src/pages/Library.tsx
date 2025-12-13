@@ -476,9 +476,6 @@ export default function Library() {
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">Library</h1>
-            <p className="text-sm text-muted-foreground">
-              Your playlists, tracks, and folders
-            </p>
           </div>
 
           {/* Search/Action Buttons - Conditional logic remains the same */}
