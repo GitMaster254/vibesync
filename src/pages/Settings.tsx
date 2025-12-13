@@ -392,7 +392,7 @@ export default function Settings() {
             className="text-center text-xs text-muted-foreground"
           >
             <p>VibeSync - Your Personal Music Player</p>
-            <p className="mt-1">Built with React, TypeScript, and love for music</p>
+            <p className="mt-1">Built with Passion and love for music</p>
           </motion.div>
         </div>
       </div>
