@@ -757,16 +757,7 @@ export default function Library() {
                       >
                         <Search className="mb-4 h-16 w-16 text-muted-foreground" />
                         <h3 className="mb-2 text-lg font-semibold">No tracks found</h3>
-                        <p className="mb-4 text-sm text-muted-foreground text-center">
-                          No tracks match "{searchQuery}"<br />
-                          Try a different search term
-                        </p>
-                        <Button
-                          variant="default"
-                          onClick={handleSearchClose}
-                        >
-                          Clear Search
-                        </Button>
+    
                       </motion.div>
                     ) : filteredTracks.length === 0 && !searchQuery ? (
                       <motion.div
