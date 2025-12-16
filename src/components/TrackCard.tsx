@@ -1,4 +1,4 @@
-import { Heart, Play, Pause, MoreVertical, Trash2, X, Share, Plus, Check, SkipForward, FileText } from 'lucide-react';
+import { Heart, Play, Pause, MoreVertical, Trash2, X, Share, Plus, Check, SkipForward, FileText, Download } from 'lucide-react';
 import { Track } from '@/lib/db';
 import { usePlayerStore } from '@/store/usePlayerStore';
 import { Button } from './ui/button';
@@ -70,6 +70,7 @@ export function TrackCard({
   const { currentTrack, isPlaying, playTrack, setIsPlaying, playNext } = usePlayerStore();
   const isCurrentTrack = currentTrack?.id === track.id;
   const [isBottomSheetOpen, setIsBottomSheetOpen] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const handleShare = async () => {
     const shareData = {
@@ -89,6 +90,65 @@ export function TrackCard({
       } catch (error) {
         console.error("Failed to copy text to clipboard:", error);
       }
+    }
+  };
+
+  const handleDownload = async () => {
+    if (isDownloading) return;
+    
+    setIsDownloading(true);
+    try {
+      // For Jamendo tracks, check for previewUrl (which contains download URL)
+      // For local tracks, use fileUrl
+      let downloadUrl = track.fileUrl;
+      
+      // Check if this is a Jamendo track with previewUrl (ExplorerTrack format)
+      const jamendoTrack = track as any;
+      if (jamendoTrack.previewUrl) {
+        downloadUrl = jamendoTrack.previewUrl;
+      }
+
+      if (!downloadUrl) {
+        throw new Error('No download URL available for this track');
+      }
+
+      // Fetch the audio file
+      const response = await fetch(downloadUrl);
+      if (!response.ok) {
+        throw new Error('Failed to fetch audio file');
+      }
+
+      // Get the blob
+      const blob = await response.blob();
+      
+      // Create a temporary URL for the blob
+      const blobUrl = URL.createObjectURL(blob);
+      
+      // Create download link
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      
+      // Create a filename with artist and title
+      const filename = `${track.artist} - ${track.title}.mp3`
+        .replace(/[^a-z0-9]/gi, '_')
+        .toLowerCase();
+      
+      link.download = filename;
+      
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
+      
+    } catch (error) {
+      console.error('Download failed:', error);
+      // You could add a toast notification here
+    } finally {
+      setIsDownloading(false);
+      setIsBottomSheetOpen(false);
     }
   };
 
@@ -276,6 +336,18 @@ export function TrackCard({
               <SkipForward className="mr-2 h-4 w-4" />
               Play Next
             </Button>
+
+            {/* Download */}
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
+              onClick={handleDownload}
+              disabled={isDownloading}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              {isDownloading ? 'Downloading...' : 'Download'}
+            </Button>
+
             {/* Add to Playlist */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
