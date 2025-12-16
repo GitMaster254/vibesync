@@ -21,12 +21,34 @@ let globalDryGain: GainNode | null = null;
 let globalMasterGain: GainNode | null = null;
 
 /**
+ * Check if a URL supports CORS for Web Audio API access
+ */
+function supportsCORS(url: string): boolean {
+  if (!url) return false;
+  
+  // Local files and blob URLs always support CORS
+  if (url.startsWith('blob:') || url.startsWith('data:') || url.startsWith('file:')) {
+    return true;
+  }
+  
+  // Check if it's a local server (same origin)
+  try {
+    const urlObj = new URL(url);
+    const currentOrigin = window.location.origin;
+    return urlObj.origin === currentOrigin;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Get or create the global audio instance
  */
 function getAudioInstance(): HTMLAudioElement {
   if (!globalAudioInstance) {
     globalAudioInstance = new Audio();
-    globalAudioInstance.preload = 'auto'; // Changed from 'metadata' to 'auto' for faster loading
+    globalAudioInstance.preload = 'auto';
+    globalAudioInstance.crossOrigin = 'anonymous'; // Try to enable CORS
   }
   return globalAudioInstance;
 }
@@ -41,14 +63,20 @@ export function getAudioElement(): HTMLAudioElement {
 
 /**
  * Get or create the global AudioContext and AnalyserNode.
- * This prevents the "already connected" error by ensuring only one MediaElementSourceNode exists.
+ * Only connects to Web Audio API for CORS-compatible sources to avoid CORS errors.
  */
 export function getAudioAnalyser(fftSize: number = 256, smoothing: number = 0.8): {
   context: AudioContext;
   analyser: AnalyserNode;
 } {
+  const audio = getAudioInstance();
+  
+  // Don't connect to Web Audio API if current source doesn't support CORS
+  if (!audio.src || !supportsCORS(audio.src)) {
+    throw new Error('Audio source does not support Web Audio API access (CORS restriction)');
+  }
+
   if (!globalAudioContext || !globalMediaSource || !globalAnalyser) {
-    const audio = getAudioInstance();
     const globalWin = globalThis as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext };
     const CtxCtor: typeof AudioContext | undefined = globalWin.AudioContext || globalWin.webkitAudioContext;
 
@@ -61,8 +89,13 @@ export function getAudioAnalyser(fftSize: number = 256, smoothing: number = 0.8)
     globalAnalyser.fftSize = fftSize;
     globalAnalyser.smoothingTimeConstant = smoothing;
 
-    // Create the MediaElementSource only once
-    globalMediaSource = globalAudioContext.createMediaElementSource(audio);
+    // Create the MediaElementSource only for CORS-compatible sources
+    try {
+      globalMediaSource = globalAudioContext.createMediaElementSource(audio);
+    } catch (error) {
+      console.warn('Failed to create MediaElementAudioSourceNode, likely due to CORS restrictions:', error);
+      throw error;
+    }
 
     // Initialize audio processing chain
     initializeAudioProcessingChain();
@@ -252,121 +285,121 @@ export function useAudioPlayer() {
     audio.addEventListener('loadedmetadata', handleLoadedMetadata);
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('ended', handleEnded);
-  audio.addEventListener('error', handleError as EventListener);
+    audio.addEventListener('error', handleError as EventListener);
 
     return () => {
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('ended', handleEnded);
-  audio.removeEventListener('error', handleError as EventListener);
+      audio.removeEventListener('error', handleError as EventListener);
     };
   }, [nextTrack, setDuration, setCurrentTime, setIsPlaying]);
 
   // Handle track changes
  useEffect(() => {
-   if (!audioRef.current || !currentTrack) return;
+  if (!audioRef.current || !currentTrack) return;
 
-   const audio = audioRef.current;
-   let newSrc: string | null = null;
+  const audio = audioRef.current;
+  let newSrc: string | null = null;
 
-   // Determine new source
-   if (currentTrack.blob instanceof Blob) {
-     newSrc = URL.createObjectURL(currentTrack.blob);
-   } else if (currentTrack.fileUrl) {
-     newSrc = currentTrack.fileUrl;
-   } else {
-     console.warn('No valid source found for current track');
-     setIsPlaying(false);
-     return;
-   }
+  // Determine new source
+  if (currentTrack.blob instanceof Blob) {
+    newSrc = URL.createObjectURL(currentTrack.blob);
+  } else if (currentTrack.fileUrl) {
+    newSrc = currentTrack.fileUrl;
+  } else {
+    console.warn('No valid source found for current track');
+    setIsPlaying(false);
+    return;
+  }
 
-   // Always update src for new tracks to ensure proper loading
-   if (newSrc !== audio.src) {
-     // Revoke previous object URL
-     if (objectUrlRef.current && objectUrlRef.current !== newSrc) {
-       URL.revokeObjectURL(objectUrlRef.current);
-     }
+  // Always update src for new tracks to ensure proper loading
+  if (newSrc !== audio.src) {
+    // Revoke previous object URL
+    if (objectUrlRef.current && objectUrlRef.current !== newSrc) {
+      URL.revokeObjectURL(objectUrlRef.current);
+    }
 
-     // Reset audio element state before changing source
-     audio.pause();
-     audio.currentTime = 0;
+    // Reset audio element state before changing source
+    audio.pause();
+    audio.currentTime = 0;
 
-     audio.src = newSrc;
-     objectUrlRef.current = newSrc;
+    audio.src = newSrc;
+    objectUrlRef.current = newSrc;
 
-     // Load the new source and wait for it to be ready
-     const handleCanPlay = () => {
-       audio.removeEventListener('canplay', handleCanPlay);
-       audio.removeEventListener('canplaythrough', handleCanPlayThrough);
-       const shouldAutoPlay = usePlayerStore.getState().isPlaying;
-       if (shouldAutoPlay) {
-         audio.play().catch(err => {
-           console.error('Playback failed:', err);
-           setIsPlaying(false);
-         });
-       }
-     };
+    // Load the new source and wait for it to be ready
+    const handleCanPlay = () => {
+      audio.removeEventListener('canplay', handleCanPlay);
+      audio.removeEventListener('canplaythrough', handleCanPlayThrough);
+      const shouldAutoPlay = usePlayerStore.getState().isPlaying;
+      if (shouldAutoPlay) {
+        audio.play().catch(err => {
+          console.error('Playback failed:', err);
+          setIsPlaying(false);
+        });
+      }
+    };
 
-     // Also listen for canplaythrough for even better readiness
-     const handleCanPlayThrough = () => {
-       audio.removeEventListener('canplay', handleCanPlay);
-       audio.removeEventListener('canplaythrough', handleCanPlayThrough);
-       const shouldAutoPlay = usePlayerStore.getState().isPlaying;
-       if (shouldAutoPlay) {
-         audio.play().catch(err => {
-           console.error('Playback failed:', err);
-           setIsPlaying(false);
-         });
-       }
-     };
+    // Also listen for canplaythrough for even better readiness
+    const handleCanPlayThrough = () => {
+      audio.removeEventListener('canplay', handleCanPlay);
+      audio.removeEventListener('canplaythrough', handleCanPlayThrough);
+      const shouldAutoPlay = usePlayerStore.getState().isPlaying;
+      if (shouldAutoPlay) {
+        audio.play().catch(err => {
+          console.error('Playback failed:', err);
+          setIsPlaying(false);
+        });
+      }
+    };
 
-     const handleError = () => {
-       audio.removeEventListener('canplay', handleCanPlay);
-       audio.removeEventListener('canplaythrough', handleCanPlayThrough);
-       audio.removeEventListener('error', handleError);
-       console.error('Failed to load audio source');
-       setIsPlaying(false);
-     };
+    const handleError = () => {
+      audio.removeEventListener('canplay', handleCanPlay);
+      audio.removeEventListener('canplaythrough', handleCanPlayThrough);
+      audio.removeEventListener('error', handleError);
+      console.error('Failed to load audio source');
+      setIsPlaying(false);
+    };
 
-     audio.addEventListener('canplay', handleCanPlay);
-     audio.addEventListener('canplaythrough', handleCanPlayThrough);
-     audio.addEventListener('error', handleError);
+    audio.addEventListener('canplay', handleCanPlay);
+    audio.addEventListener('canplaythrough', handleCanPlayThrough);
+    audio.addEventListener('error', handleError);
 
-     try {
-       audio.load();
-     } catch (e) {
-       console.error('Failed to load audio source:', e);
-       setIsPlaying(false);
-       return;
-     }
-   } else {
-     // Same source, just try to play if needed
-     const shouldAutoPlay = usePlayerStore.getState().isPlaying;
-     if (shouldAutoPlay) {
-       audio.play().catch(err => {
-         console.error('Playback failed:', err);
-         setIsPlaying(false);
-       });
-     }
-   }
+    try {
+      audio.load();
+    } catch (e) {
+      console.error('Failed to load audio source:', e);
+      setIsPlaying(false);
+      return;
+    }
+  } else {
+    // Same source, just try to play if needed
+    const shouldAutoPlay = usePlayerStore.getState().isPlaying;
+    if (shouldAutoPlay) {
+      audio.play().catch(err => {
+        console.error('Playback failed:', err);
+        setIsPlaying(false);
+      });
+    }
+  }
 
-   // Update Media Session metadata
-   try {
-     const nav = navigator as unknown as { mediaSession?: { metadata?: unknown } };
-     const w = window as unknown as { MediaMetadata?: new (data: unknown) => unknown };
-     if (nav.mediaSession && w.MediaMetadata) {
-       const artwork = currentTrack.coverArt ? [{ src: currentTrack.coverArt, sizes: '512x512', type: 'image/png' }] : [];
-       nav.mediaSession.metadata = new w.MediaMetadata({
-         title: currentTrack.title,
-         artist: currentTrack.artist,
-         album: currentTrack.album || 'VibeSync',
-         artwork,
-       }) as unknown as MediaMetadata;
-     }
-   } catch (e) {
-     // ignore media session errors
-   }
- }, [currentTrack, setIsPlaying]);
+  // Update Media Session metadata
+  try {
+    const nav = navigator as unknown as { mediaSession?: { metadata?: unknown } };
+    const w = window as unknown as { MediaMetadata?: new (data: unknown) => unknown };
+    if (nav.mediaSession && w.MediaMetadata) {
+      const artwork = currentTrack.coverArt ? [{ src: currentTrack.coverArt, sizes: '512x512', type: 'image/png' }] : [];
+      nav.mediaSession.metadata = new w.MediaMetadata({
+        title: currentTrack.title,
+        artist: currentTrack.artist,
+        album: currentTrack.album || 'VibeSync',
+        artwork,
+      }) as unknown as MediaMetadata;
+    }
+  } catch (e) {
+    // ignore media session errors
+  }
+}, [currentTrack, setIsPlaying]);
 
   // Handle play/pause
 useEffect(() => {
