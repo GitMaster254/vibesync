@@ -29,7 +29,9 @@ export function useAudioAnalyser(opts?: { fftSize?: 256; smoothing?: number; bin
       analyserRef.current = analyser;
       setReady(true);
     } catch (err) {
-      console.error('Failed to initialize audio analyser:', err);
+      // Visualizer not available for this audio source (CORS restriction)
+      // This is normal for external sources like Jamendo
+      console.debug('Audio visualization unavailable for this source');
     }
 
     return () => {

@@ -114,12 +114,14 @@ export default function Player() {
     x.set(0);
   };
 
-  // Redirect if no track
+  // Show placeholder when no track is playing instead of redirecting
+  // This prevents navigation loops during player state transitions
   useEffect(() => {
     if (!currentTrack) {
-      navigate('/');
+      // Don't redirect immediately, let the component show a no-track state
+      console.log('Player: No current track, showing placeholder');
     }
-  }, [currentTrack, navigate]);
+  }, [currentTrack]);
 
   useEffect(() => {
   if (showSpeakerTip) {
@@ -133,7 +135,44 @@ export default function Player() {
 
   // Karaoke play button handler
 
-  if (!currentTrack) return null;
+  // Show placeholder when no track is playing
+  if (!currentTrack) {
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col bg-background">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center justify-between p-4"
+        >
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate(-1)}
+          >
+            <ChevronDown className="h-6 w-6" />
+          </Button>
+          <h2 className="text-sm font-medium">Now Playing</h2>
+          <div className="w-10" />
+        </motion.div>
+
+        {/* No track placeholder */}
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-32 h-32 mx-auto mb-6 rounded-2xl bg-gradient-primary opacity-50" />
+            <h3 className="text-xl font-semibold mb-2 text-muted-foreground">No track playing</h3>
+            <p className="text-sm text-muted-foreground mb-6">Start playing music to see the full player</p>
+            <Button 
+              variant="outline" 
+              onClick={() => navigate('/')}
+            >
+              Go to Library
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
