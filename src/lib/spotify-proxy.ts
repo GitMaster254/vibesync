@@ -117,22 +117,120 @@ export const spotifyProxy = {
 
   async getGenres(): Promise<Genre[]> {
     return [
+      // Rock & Alternative
       { id: 'rock', name: 'Rock' },
-      { id: 'electronic', name: 'Electronic' },
+      { id: 'alternative', name: 'Alternative Rock' },
+      { id: 'indie', name: 'Indie Rock' },
+      { id: 'hardrock', name: 'Hard Rock' },
+      { id: 'metal', name: 'Metal' },
+      { id: 'punk', name: 'Punk' },
+      { id: 'grunge', name: 'Grunge' },
+      
+      // Pop & Mainstream
       { id: 'pop', name: 'Pop' },
+      { id: 'dancepop', name: 'Dance Pop' },
+      { id: 'electropop', name: 'Electropop' },
+      { id: 'indiepop', name: 'Indie Pop' },
+      { id: 'synthpop', name: 'Synth Pop' },
+      
+      // Electronic & Dance
+      { id: 'electronic', name: 'Electronic' },
+      { id: 'house', name: 'House' },
+      { id: 'techno', name: 'Techno' },
+      { id: 'trance', name: 'Trance' },
+      { id: 'drumandbass', name: 'Drum & Bass' },
+      { id: 'dubstep', name: 'Dubstep' },
+      { id: 'edm', name: 'EDM' },
+      { id: 'ambient', name: 'Ambient' },
+      
+      // Hip Hop & Rap
       { id: 'hiphop', name: 'Hip Hop' },
+      { id: 'rap', name: 'Rap' },
+      { id: 'trap', name: 'Trap' },
+      { id: 'rnb', name: 'R&B' },
+      { id: 'soul', name: 'Soul' },
+      { id: 'funk', name: 'Funk' },
+      
+      // Jazz & Blues
       { id: 'jazz', name: 'Jazz' },
-      { id: 'classical', name: 'Classical' },
-      { id: 'folk', name: 'Folk' },
-      { id: 'reggae', name: 'Reggae' },
       { id: 'blues', name: 'Blues' },
+      { id: 'swing', name: 'Swing' },
+      { id: 'bebop', name: 'Bebop' },
+      { id: 'fusion', name: 'Jazz Fusion' },
+      
+      // Gospel & Christian
+      { id: 'gospel', name: 'Gospel' },
+      { id: 'christian', name: 'Christian Contemporary' },
+      { id: 'spirituals', name: 'Spirituals' },
+      { id: 'ccm', name: 'Contemporary Christian' },
+      { id: 'worship', name: 'Worship' },
+      
+      // Country & Folk
       { id: 'country', name: 'Country' },
+      { id: 'folk', name: 'Folk' },
+      { id: 'bluegrass', name: 'Bluegrass' },
+      { id: 'americana', name: 'Americana' },
+      
+      // Classical & Orchestral
+      { id: 'classical', name: 'Classical' },
+      { id: 'orchestral', name: 'Orchestral' },
+      { id: 'baroque', name: 'Baroque' },
+      { id: 'romantic', name: 'Romantic' },
+      { id: 'chamber', name: 'Chamber Music' },
+      
+      // Reggae & Caribbean
+      { id: 'reggae', name: 'Reggae' },
+      { id: 'dancehall', name: 'Dancehall' },
+      { id: 'ska', name: 'Ska' },
+      { id: 'calypso', name: 'Calypso' },
+      
+      // World & International
+      { id: 'world', name: 'World Music' },
+      { id: 'latin', name: 'Latin' },
+      { id: 'salsa', name: 'Salsa' },
+      { id: 'bossa nova', name: 'Bossa Nova' },
+      { id: 'tango', name: 'Tango' },
+      
+      // African Music
       { id: 'afrobeat', name: 'Afrobeat' },
       { id: 'highlife', name: 'Highlife' },
       { id: 'kwaito', name: 'Kwaito' },
       { id: 'african', name: 'African' },
-      { id: 'world', name: 'World Music' },
+      { id: 'african-pop', name: 'African Pop' },
       { id: 'traditional', name: 'Traditional' },
+      { id: 'makossa', name: 'Makossa' },
+      { id: 'benga', name: 'Benga' },
+      { id: 'souksous', name: 'Soukous' },
+      
+      // R&B & Soul
+      { id: 'motown', name: 'Motown' },
+      { id: 'disco', name: 'Disco' },
+      { id: 'funk', name: 'Funk' },
+      { id: 'neo-soul', name: 'Neo-Soul' },
+      
+      // Alternative & Indie
+      { id: 'post-rock', name: 'Post-Rock' },
+      { id: 'post-punk', name: 'Post-Punk' },
+      { id: 'shoegaze', name: 'Shoegaze' },
+      { id: 'dream-pop', name: 'Dream Pop' },
+      
+      // Rock Subgenres
+      { id: 'progressive', name: 'Progressive Rock' },
+      { id: 'psychedelic', name: 'Psychedelic Rock' },
+      { id: 'garage', name: 'Garage Rock' },
+      { id: 'surf', name: 'Surf Rock' },
+      
+      // Pop Subgenres
+      { id: 'britpop', name: 'Britpop' },
+      { id: 'europop', name: 'Europop' },
+      { id: 'kpop', name: 'K-Pop' },
+      { id: 'jpop', name: 'J-Pop' },
+      
+      // Experimental & Other
+      { id: 'experimental', name: 'Experimental' },
+      { id: 'avant-garde', name: 'Avant-Garde' },
+      { id: 'noise', name: 'Noise' },
+      { id: 'industrial', name: 'Industrial' },
     ];
   },
 
