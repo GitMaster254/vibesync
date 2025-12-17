@@ -1,4 +1,4 @@
-import { Music, Info, Shield, Trash2, Share } from 'lucide-react';
+import { Music, Info, Shield, Trash2, Share, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { addTrack, type Track } from '@/lib/db';
@@ -6,6 +6,7 @@ import { type ImportProgress } from '@/lib/importWithProgress';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Switch } from '@/components/ui/switch';
 import { getStoredTheme, getSystemTheme, setTheme, type Theme } from '@/lib/theme';
 import { cn } from '@/lib/utils';
@@ -15,6 +16,7 @@ import { isHapticsEnabled } from '@/lib/haptics';
  * Settings page - App configuration and info
  */
 export default function Settings() {
+  const navigate = useNavigate();
   // Import progress state
   const [importProgress, setImportProgress] = useState<ImportProgress>({ active: false, total: 0, current: 0 });
   const [importMinimized, setImportMinimized] = useState(false);
@@ -173,6 +175,12 @@ export default function Settings() {
       items: [
         { icon: Music, label: 'Version', value: '1.0.0' },
         { icon: Info, label: 'PWA Status', value: 'Installed' },
+      ],
+    },
+    {
+      title: 'Legal',
+      items: [
+        { icon: FileText, label: 'Terms of Service', value: 'View', link: '/terms' },
       ],
     },
     {
@@ -344,7 +352,14 @@ export default function Settings() {
               </h2>
               <div className="space-y-3">
                 {section.items.map((item) => (
-                  <div key={item.label} className="flex items-center justify-between">
+                  <div
+                    key={item.label}
+                    className={cn(
+                      "flex items-center justify-between",
+                      item.link && "cursor-pointer hover:bg-accent/50 rounded-lg -m-1 p-1 transition-colors"
+                    )}
+                    onClick={item.link ? () => navigate(item.link!) : undefined}
+                  >
                     <div className="flex items-center gap-3">
                       <item.icon className="h-5 w-5 text-muted-foreground" />
                       <span className="font-medium">{item.label}</span>

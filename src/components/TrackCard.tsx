@@ -98,31 +98,12 @@ export function TrackCard({
     
     setIsDownloading(true);
     try {
-<<<<<<< HEAD
-      // For Jamendo tracks, check for previewUrl (which contains download URL)
-      // For local tracks, use fileUrl
-      let downloadUrl = track.fileUrl;
-=======
       // Determine the source URL for the track
       let sourceUrl = track.fileUrl;
->>>>>>> BLACKBOX
       
       // Check if this is a Jamendo track with previewUrl (ExplorerTrack format)
       const jamendoTrack = track as any;
       if (jamendoTrack.previewUrl) {
-<<<<<<< HEAD
-        downloadUrl = jamendoTrack.previewUrl;
-      }
-
-      if (!downloadUrl) {
-        throw new Error('No download URL available for this track');
-      }
-
-      // Fetch the audio file
-      const response = await fetch(downloadUrl);
-      if (!response.ok) {
-        throw new Error('Failed to fetch audio file');
-=======
         sourceUrl = jamendoTrack.previewUrl;
       }
 
@@ -199,20 +180,16 @@ export function TrackCard({
           throw new Error('The audio service returned an error page. This track may not be available for download.');
         }
         throw new Error(`Expected audio content, got: ${contentType}`);
->>>>>>> BLACKBOX
       }
 
       // Get the blob
       const blob = await response.blob();
       
-<<<<<<< HEAD
-=======
       // Basic validation - check if blob has reasonable size for audio
       if (blob.size < 1024) { // Less than 1KB is suspicious
         throw new Error('Downloaded file is too small to be a valid audio file');
       }
       
->>>>>>> BLACKBOX
       // Create a temporary URL for the blob
       const blobUrl = URL.createObjectURL(blob);
       
@@ -221,9 +198,6 @@ export function TrackCard({
       link.href = blobUrl;
       
       // Create a filename with artist and title
-<<<<<<< HEAD
-      const filename = `${track.artist} - ${track.title}.mp3`
-=======
       // Try to determine extension from the original URL or content type
       let extension = 'mp3'; // default
       if (contentType) {
@@ -242,7 +216,6 @@ export function TrackCard({
       }
       
       const filename = `${track.artist} - ${track.title}.${extension}`
->>>>>>> BLACKBOX
         .replace(/[^a-z0-9]/gi, '_')
         .toLowerCase();
       
@@ -258,12 +231,8 @@ export function TrackCard({
       
     } catch (error) {
       console.error('Download failed:', error);
-<<<<<<< HEAD
-      // You could add a toast notification here
-=======
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       alert(`Download failed: ${errorMessage}\n\nNote: Some tracks from streaming services may not be available for direct download due to licensing restrictions.`);
->>>>>>> BLACKBOX
     } finally {
       setIsDownloading(false);
       setIsBottomSheetOpen(false);
