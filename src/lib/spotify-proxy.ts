@@ -2,6 +2,18 @@
 const JAMENDO_BASE_URL = 'https://api.jamendo.com/v3.0/';
 const CLIENT_ID = 'c760f716';
 
+/**
+ * Create a proxied stream URL that goes through the streaming proxy endpoint
+ * This ensures proper headers and CORS handling for audio streaming
+ */
+function createStreamUrl(originalUrl: string, baseUrl?: string): string {
+  // Use provided baseUrl or try to detect it from the current environment
+  const origin = baseUrl || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173');
+  const proxyUrl = new URL('/api/spotify/stream', origin);
+  proxyUrl.searchParams.set('url', originalUrl);
+  return proxyUrl.toString();
+}
+
 export interface ExplorerTrack {
   id: string;
   title: string;
