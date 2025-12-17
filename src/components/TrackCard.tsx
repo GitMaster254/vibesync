@@ -98,13 +98,19 @@ export function TrackCard({
     
     setIsDownloading(true);
     try {
+<<<<<<< HEAD
       // For Jamendo tracks, check for previewUrl (which contains download URL)
       // For local tracks, use fileUrl
       let downloadUrl = track.fileUrl;
+=======
+      // Determine the source URL for the track
+      let sourceUrl = track.fileUrl;
+>>>>>>> BLACKBOX
       
       // Check if this is a Jamendo track with previewUrl (ExplorerTrack format)
       const jamendoTrack = track as any;
       if (jamendoTrack.previewUrl) {
+<<<<<<< HEAD
         downloadUrl = jamendoTrack.previewUrl;
       }
 
@@ -116,11 +122,97 @@ export function TrackCard({
       const response = await fetch(downloadUrl);
       if (!response.ok) {
         throw new Error('Failed to fetch audio file');
+=======
+        sourceUrl = jamendoTrack.previewUrl;
+      }
+
+      if (!sourceUrl) {
+        throw new Error('No download URL available for this track');
+      }
+
+      let finalUrl = sourceUrl;
+      let shouldUseProxy = false;
+
+      // Determine if we need to use the proxy
+      // Use proxy for external URLs (Jamendo, Audiomack, etc.)
+      // Don't use proxy for local files (already on same domain)
+      if (sourceUrl.startsWith('http')) {
+        try {
+          const urlObj = new URL(sourceUrl);
+          const currentOrigin = window.location.origin;
+          const sourceOrigin = urlObj.origin;
+          
+          // Use proxy if it's a different origin (external service)
+          if (sourceOrigin !== currentOrigin) {
+            shouldUseProxy = true;
+          }
+        } catch (e) {
+          // If URL parsing fails, use proxy as fallback
+          shouldUseProxy = true;
+        }
+      }
+
+      // Use the streaming proxy endpoint for external URLs
+      if (shouldUseProxy) {
+        const proxyUrl = new URL('/api/spotify/stream', window.location.origin);
+        proxyUrl.searchParams.set('url', sourceUrl);
+        finalUrl = proxyUrl.toString();
+      }
+
+      // Try to fetch the audio file with multiple fallback attempts
+      let response;
+      let attempt = 0;
+      const maxAttempts = shouldUseProxy ? 2 : 1; // Only retry with proxy
+
+      while (attempt < maxAttempts) {
+        try {
+          response = await fetch(finalUrl);
+          if (response.ok) break; // Success, exit retry loop
+          
+          // If it's a 4xx/5xx error and we haven't tried the original URL yet
+          if (attempt === 0 && shouldUseProxy) {
+            console.log('Proxy failed, trying original URL...');
+            finalUrl = sourceUrl; // Try without proxy
+            shouldUseProxy = false;
+          }
+        } catch (fetchError) {
+          console.error(`Fetch attempt ${attempt + 1} failed:`, fetchError);
+          if (attempt === 0 && shouldUseProxy) {
+            finalUrl = sourceUrl; // Try without proxy
+            shouldUseProxy = false;
+          } else {
+            throw fetchError;
+          }
+        }
+        attempt++;
+      }
+
+      if (!response || !response.ok) {
+        throw new Error(`Failed to fetch audio file: ${response?.status} ${response?.statusText}`);
+      }
+
+      // Verify the response is actually audio content
+      const contentType = response.headers.get('content-type');
+      if (contentType && !contentType.startsWith('audio/') && !contentType.includes('application/octet-stream')) {
+        // Check if it's an HTML error page
+        if (contentType.includes('text/html')) {
+          throw new Error('The audio service returned an error page. This track may not be available for download.');
+        }
+        throw new Error(`Expected audio content, got: ${contentType}`);
+>>>>>>> BLACKBOX
       }
 
       // Get the blob
       const blob = await response.blob();
       
+<<<<<<< HEAD
+=======
+      // Basic validation - check if blob has reasonable size for audio
+      if (blob.size < 1024) { // Less than 1KB is suspicious
+        throw new Error('Downloaded file is too small to be a valid audio file');
+      }
+      
+>>>>>>> BLACKBOX
       // Create a temporary URL for the blob
       const blobUrl = URL.createObjectURL(blob);
       
@@ -129,7 +221,28 @@ export function TrackCard({
       link.href = blobUrl;
       
       // Create a filename with artist and title
+<<<<<<< HEAD
       const filename = `${track.artist} - ${track.title}.mp3`
+=======
+      // Try to determine extension from the original URL or content type
+      let extension = 'mp3'; // default
+      if (contentType) {
+        if (contentType.includes('mp3')) extension = 'mp3';
+        else if (contentType.includes('wav')) extension = 'wav';
+        else if (contentType.includes('flac')) extension = 'flac';
+        else if (contentType.includes('ogg')) extension = 'ogg';
+        else if (contentType.includes('m4a')) extension = 'm4a';
+        else if (contentType.includes('aac')) extension = 'aac';
+      } else {
+        // Try to guess from URL
+        const urlExtension = sourceUrl.split('.').pop()?.split('?')[0].toLowerCase();
+        if (['mp3', 'wav', 'flac', 'ogg', 'm4a', 'aac'].includes(urlExtension || '')) {
+          extension = urlExtension || 'mp3';
+        }
+      }
+      
+      const filename = `${track.artist} - ${track.title}.${extension}`
+>>>>>>> BLACKBOX
         .replace(/[^a-z0-9]/gi, '_')
         .toLowerCase();
       
@@ -145,7 +258,12 @@ export function TrackCard({
       
     } catch (error) {
       console.error('Download failed:', error);
+<<<<<<< HEAD
       // You could add a toast notification here
+=======
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert(`Download failed: ${errorMessage}\n\nNote: Some tracks from streaming services may not be available for direct download due to licensing restrictions.`);
+>>>>>>> BLACKBOX
     } finally {
       setIsDownloading(false);
       setIsBottomSheetOpen(false);
