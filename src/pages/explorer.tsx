@@ -291,11 +291,32 @@ export default function Explorer(): JSX.Element {
                     genres.map((genre) => {
                       const IconComponent = genreIconMap[genre.name.toLowerCase()] || Music;
                       return (
-                        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }} key={genre.id} className="group relative aspect-square rounded-xl overflow-hidden bg-gradient-to-br from-muted to-muted-foreground/10 cursor-pointer" onClick={() => handleGenreClick(genre)}>
-                          {genre.cover ? <img src={genre.cover} alt={genre.name} className="h-full w-full object-cover group-hover:scale-110 transition-transform" /> : <div className="h-full w-full bg-gradient-primary flex items-center justify-center"><IconComponent className="h-8 w-8 text-white/70" /></div>}
-                          <div className="absolute inset-0 bg-black/20 group-hover:bg-black/30 transition-all" />
-                          <div className="absolute bottom-2 left-2 right-2"><h3 className="text-white font-semibold truncate">{genre.name}</h3></div>
-                        </motion.div>
+                        <motion.div
+  whileHover={{ scale: 1.04 }}
+  whileTap={{ scale: 0.97 }}
+  key={genre.id}
+  className="group relative aspect-[4/3] rounded-md overflow-hidden cursor-pointer"
+  onClick={() => handleGenreClick(genre)}
+>
+  {genreImage ? (
+    <img
+      src={genreImage}
+      alt={genre.name}
+      className="h-full w-full object-cover group-hover:scale-105 transition-transform"
+    />
+  ) : (
+    <div className="h-full w-full bg-gradient-primary flex items-center justify-center">
+      <IconComponent className="h-4 w-4 sm:h-5 sm:w-5 text-white/70" />
+    </div>
+  )}
+
+  <div className="absolute inset-0 bg-black/10 group-hover:bg-black/20 transition" />
+  <div className="absolute bottom-1 left-1 right-1">
+    <h3 className="text-white text-xs sm:text-sm font-medium truncate">
+      {genre.name}
+    </h3>
+  </div>
+</motion.div>
                       );
                     })
                   )}
