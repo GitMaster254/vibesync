@@ -9,6 +9,7 @@ import {
   Play,
   Pause,
   Share2,
+  X,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -20,10 +21,11 @@ import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
 
+type Panel = 'upNext' | 'lyrics' | null;
+
 export default function Player() {
   const navigate = useNavigate();
-  const [showUpNext, setShowUpNext] = useState(false);
-  const [showLyrics, setShowLyrics] = useState(false);
+  const [activePanel, setActivePanel] = useState<Panel>(null);
 
   const {
     currentTrack,
@@ -45,13 +47,13 @@ export default function Player() {
   return (
     <div className="fixed inset-0 z-50 bg-background text-foreground overflow-hidden">
 
-      {/* 🌫 Dynamic Blurred Background */}
+      {/* 🌫 Blurred Background */}
       <motion.div
         key={currentTrack.coverArt}
         initial={{ opacity: 0 }}
         animate={{ opacity: 0.35 }}
         transition={{ duration: 0.6 }}
-        className="absolute inset-0 z-0 blur-[120px] scale-150 pointer-events-none"
+        className="absolute inset-0 blur-[120px] scale-150"
         style={{
           backgroundImage: `url(${currentTrack.coverArt})`,
           backgroundSize: 'cover',
@@ -77,11 +79,11 @@ export default function Player() {
             key={currentTrack.id}
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.4, ease: 'easeOut' }}
+            transition={{ duration: 0.4 }}
             className="w-full max-w-[340px] aspect-square rounded-[40px] overflow-hidden shadow-2xl"
           >
             <img
-              src={currentTrack.coverArt || '/placeholder.jpg'}
+              src={currentTrack.coverArt}
               alt={currentTrack.title}
               className="h-full w-full object-cover"
             />
@@ -111,7 +113,7 @@ export default function Player() {
         </div>
 
         {/* Controls */}
-        <div className="flex items-center justify-between px-10 pb-10">
+        <div className="flex items-center justify-between px-10 pb-8">
           <Button variant="ghost" size="icon" onClick={cycleRepeat} className="opacity-60">
             <RepeatIcon className="h-6 w-6" />
           </Button>
@@ -140,71 +142,97 @@ export default function Player() {
           </Button>
         </div>
 
-        {/* Bottom Tray */}
-        <div className="relative bg-muted/50 backdrop-blur-3xl rounded-t-[40px] pt-4 pb-10 border-t border-border">
-          <div className="w-12 h-1.5 bg-muted rounded-full mx-auto mb-8" />
+        {/* Bottom Tabs */}
+        <div className="relative bg-muted/60 backdrop-blur-3xl rounded-t-[40px] pt-4 pb-8 border-t border-border">
+          <div className="w-12 h-1.5 bg-muted rounded-full mx-auto mb-6" />
 
           <div className="flex justify-around px-10">
             <button
-              onClick={() => {
-                setShowUpNext(!showUpNext);
-                setShowLyrics(false);
-              }}
+              onClick={() =>
+                setActivePanel(activePanel === 'upNext' ? null : 'upNext')
+              }
               className={cn(
-                'text-xs font-black uppercase tracking-[0.25em] transition-colors',
-                showUpNext ? 'text-foreground' : 'text-muted-foreground'
+                'text-xs font-black uppercase tracking-[0.25em]',
+                activePanel === 'upNext'
+                  ? 'text-foreground'
+                  : 'text-muted-foreground'
               )}
             >
-              Up Next
+              UP NEXT
             </button>
 
             <button
-              onClick={() => {
-                setShowLyrics(!showLyrics);
-                setShowUpNext(false);
-              }}
+              onClick={() =>
+                setActivePanel(activePanel === 'lyrics' ? null : 'lyrics')
+              }
               className={cn(
-                'text-xs font-black uppercase tracking-[0.25em] transition-colors',
-                showLyrics ? 'text-foreground' : 'text-muted-foreground'
+                'text-xs font-black uppercase tracking-[0.25em]',
+                activePanel === 'lyrics'
+                  ? 'text-foreground'
+                  : 'text-muted-foreground'
               )}
             >
-              Lyrics
+              LYRICS
             </button>
           </div>
         </div>
 
-        {/* Panels */}
+        {/* Persistent Bottom Sheet */}
         <AnimatePresence>
-          {showUpNext && (
+          {activePanel && (
             <motion.div
-              initial={{ y: 60, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 60, opacity: 0 }}
-              transition={{ duration: 0.25 }}
-              className="absolute bottom-0 left-0 right-0 px-10 pb-20 bg-background/80 backdrop-blur-2xl"
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ duration: 0.35, ease: 'easeOut' }}
+              className="absolute bottom-0 left-0 right-0 z-40
+                         h-[60vh]
+                         rounded-t-[32px]
+                         bg-background/90
+                         backdrop-blur-2xl
+                         border-t border-border
+                         px-6 pt-6 pb-10"
             >
-              <h3 className="text-sm font-bold tracking-widest mb-4">UP NEXT</h3>
-              <p className="text-sm text-muted-foreground">
-                Queue coming soon…
-              </p>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              {/* Sheet Header */}
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-sm font-bold tracking-widest">
+                  {activePanel === 'upNext' ? 'UP NEXT' : 'LYRICS'}
+                </h3>
+                <button onClick={() => setActivePanel(null)}>
+                  <X className="h-5 w-5 text-muted-foreground" />
+                </button>
+              </div>
 
-        <AnimatePresence>
-          {showLyrics && (
-            <motion.div
-              initial={{ y: 60, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 60, opacity: 0 }}
-              transition={{ duration: 0.25 }}
-              className="absolute bottom-0 left-0 right-0 px-10 pb-20 max-h-[45vh] overflow-y-auto bg-background/80 backdrop-blur-2xl"
-            >
-              <h3 className="text-sm font-bold tracking-widest mb-4">LYRICS</h3>
-              <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
-                Lyrics will appear here,
-                synced with the music 🎶
-              </p>
+              {/* Sheet Content */}
+              {activePanel === 'upNext' && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-4">
+                    <img
+                      src={currentTrack.coverArt}
+                      className="h-14 w-14 rounded-xl object-cover"
+                    />
+                    <div className="flex-1 overflow-hidden">
+                      <p className="font-semibold truncate">
+                        {currentTrack.title}
+                      </p>
+                      <p className="text-sm text-muted-foreground truncate">
+                        {currentTrack.artist}
+                      </p>
+                    </div>
+                  </div>
+
+                  <p className="text-sm text-muted-foreground">
+                    Queue coming soon…
+                  </p>
+                </div>
+              )}
+
+              {activePanel === 'lyrics' && (
+                <div className="max-h-full overflow-y-auto text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
+                  Lyrics will appear here,
+                  synced with the music 🎶
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
