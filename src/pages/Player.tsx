@@ -43,13 +43,13 @@ export default function Player() {
   const RepeatIcon = repeat === 'one' ? Repeat1 : Repeat;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black text-white overflow-hidden">
+    <div className="fixed inset-0 z-50 bg-background text-foreground overflow-hidden">
 
       {/* 🌫 Dynamic Blurred Background */}
       <motion.div
         key={currentTrack.coverArt}
         initial={{ opacity: 0 }}
-        animate={{ opacity: 0.4 }}
+        animate={{ opacity: 0.35 }}
         transition={{ duration: 0.6 }}
         className="absolute inset-0 z-0 blur-[120px] scale-150 pointer-events-none"
         style={{
@@ -64,10 +64,10 @@ export default function Player() {
         {/* Header */}
         <div className="flex items-center justify-between p-6">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ChevronDown className="h-8 w-8 text-white/80" />
+            <ChevronDown className="h-8 w-8 opacity-80" />
           </Button>
           <Button variant="ghost" size="icon">
-            <MoreVertical className="h-6 w-6 text-white/80" />
+            <MoreVertical className="h-6 w-6 opacity-80" />
           </Button>
         </div>
 
@@ -78,7 +78,7 @@ export default function Player() {
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.4, ease: 'easeOut' }}
-            className="w-full max-w-[340px] aspect-square rounded-[40px] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.6)]"
+            className="w-full max-w-[340px] aspect-square rounded-[40px] overflow-hidden shadow-2xl"
           >
             <img
               src={currentTrack.coverArt || '/placeholder.jpg'}
@@ -91,12 +91,12 @@ export default function Player() {
         {/* Track Info */}
         <div className="px-10 pb-2">
           <h1 className="text-3xl font-bold truncate">{currentTrack.title}</h1>
-          <p className="text-xl text-white/60 mt-1 truncate">
+          <p className="text-xl text-muted-foreground mt-1 truncate">
             {currentTrack.artist}
           </p>
         </div>
 
-        {/* Progress Bar */}
+        {/* Progress */}
         <div className="px-10 py-6">
           <Slider
             value={[progress]}
@@ -104,7 +104,7 @@ export default function Player() {
             max={100}
             step={0.1}
           />
-          <div className="mt-3 flex justify-between text-xs text-white/30 font-bold tracking-widest">
+          <div className="mt-3 flex justify-between text-xs text-muted-foreground font-bold tracking-widest">
             <span>{formatTime(currentTime)}</span>
             <span>{formatTime(duration)}</span>
           </div>
@@ -112,7 +112,7 @@ export default function Player() {
 
         {/* Controls */}
         <div className="flex items-center justify-between px-10 pb-10">
-          <Button variant="ghost" size="icon" onClick={cycleRepeat} className="text-white/50">
+          <Button variant="ghost" size="icon" onClick={cycleRepeat} className="opacity-60">
             <RepeatIcon className="h-6 w-6" />
           </Button>
 
@@ -122,7 +122,7 @@ export default function Player() {
 
           <Button
             onClick={() => setIsPlaying(!isPlaying)}
-            className="h-20 w-20 rounded-full bg-white/10 backdrop-blur-xl border border-white/10"
+            className="h-20 w-20 rounded-full bg-primary/10 backdrop-blur-xl border border-border"
           >
             {isPlaying ? (
               <Pause className="h-10 w-10" />
@@ -135,14 +135,14 @@ export default function Player() {
             <SkipForward className="h-10 w-10" />
           </Button>
 
-          <Button variant="ghost" size="icon" className="text-white/50">
+          <Button variant="ghost" size="icon" className="opacity-60">
             <Share2 className="h-6 w-6" />
           </Button>
         </div>
 
-        {/* Bottom Navigation Tray */}
-        <div className="relative bg-white/5 backdrop-blur-3xl rounded-t-[40px] pt-4 pb-10 border-t border-white/10">
-          <div className="w-12 h-1.5 bg-white/20 rounded-full mx-auto mb-8" />
+        {/* Bottom Tray */}
+        <div className="relative bg-muted/50 backdrop-blur-3xl rounded-t-[40px] pt-4 pb-10 border-t border-border">
+          <div className="w-12 h-1.5 bg-muted rounded-full mx-auto mb-8" />
 
           <div className="flex justify-around px-10">
             <button
@@ -152,7 +152,7 @@ export default function Player() {
               }}
               className={cn(
                 'text-xs font-black uppercase tracking-[0.25em] transition-colors',
-                showUpNext ? 'text-white' : 'text-white/30'
+                showUpNext ? 'text-foreground' : 'text-muted-foreground'
               )}
             >
               Up Next
@@ -165,7 +165,7 @@ export default function Player() {
               }}
               className={cn(
                 'text-xs font-black uppercase tracking-[0.25em] transition-colors',
-                showLyrics ? 'text-white' : 'text-white/30'
+                showLyrics ? 'text-foreground' : 'text-muted-foreground'
               )}
             >
               Lyrics
@@ -173,20 +173,18 @@ export default function Player() {
           </div>
         </div>
 
-        {/* 🔽 Animated Bottom Panels */}
+        {/* Panels */}
         <AnimatePresence>
           {showUpNext && (
             <motion.div
               initial={{ y: 60, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 60, opacity: 0 }}
-              transition={{ duration: 0.25, ease: 'easeOut' }}
-              className="absolute bottom-0 left-0 right-0 px-10 pb-20 bg-black/50 backdrop-blur-2xl"
+              transition={{ duration: 0.25 }}
+              className="absolute bottom-0 left-0 right-0 px-10 pb-20 bg-background/80 backdrop-blur-2xl"
             >
-              <h3 className="text-sm font-bold tracking-widest mb-4">
-                UP NEXT
-              </h3>
-              <p className="text-sm text-white/60">
+              <h3 className="text-sm font-bold tracking-widest mb-4">UP NEXT</h3>
+              <p className="text-sm text-muted-foreground">
                 Queue coming soon…
               </p>
             </motion.div>
@@ -199,13 +197,11 @@ export default function Player() {
               initial={{ y: 60, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 60, opacity: 0 }}
-              transition={{ duration: 0.25, ease: 'easeOut' }}
-              className="absolute bottom-0 left-0 right-0 px-10 pb-20 max-h-[45vh] overflow-y-auto bg-black/50 backdrop-blur-2xl"
+              transition={{ duration: 0.25 }}
+              className="absolute bottom-0 left-0 right-0 px-10 pb-20 max-h-[45vh] overflow-y-auto bg-background/80 backdrop-blur-2xl"
             >
-              <h3 className="text-sm font-bold tracking-widest mb-4">
-                LYRICS
-              </h3>
-              <p className="text-sm leading-relaxed text-white/60 whitespace-pre-line">
+              <h3 className="text-sm font-bold tracking-widest mb-4">LYRICS</h3>
+              <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
                 Lyrics will appear here,
                 synced with the music 🎶
               </p>
