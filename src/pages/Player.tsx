@@ -10,6 +10,7 @@ import {
   Pause,
   Share2,
   X,
+  Music,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -22,6 +23,20 @@ import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
 
 type Panel = 'upNext' | 'lyrics' | null;
+
+// Fallback Artwork Component
+function FallbackArtwork({ size }: { size?: number }) {
+  return (
+    <div
+      className={cn(
+        'flex items-center justify-center bg-gradient-to-br from-neutral-900 to-neutral-800',
+        size ? `w-[${size}px] h-[${size}px]` : 'w-full h-full'
+      )}
+    >
+      <Music className={cn(size ? `w-[${size}px] h-[${size}px]` : 'w-24 h-24')} strokeWidth={1.5} />
+    </div>
+  );
+}
 
 export default function Player() {
   const navigate = useNavigate();
@@ -44,18 +59,32 @@ export default function Player() {
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
   const RepeatIcon = repeat === 'one' ? Repeat1 : Repeat;
 
+  const getArtwork = (size?: number) => {
+    return currentTrack.coverArt ? (
+      <img
+        src={currentTrack.coverArt}
+        alt={currentTrack.title}
+        className="h-full w-full object-cover"
+      />
+    ) : (
+      <FallbackArtwork size={size} />
+    );
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-background text-foreground overflow-hidden">
 
       {/* 🌫 Blurred Album Background */}
       <motion.div
-        key={currentTrack.coverArt}
+        key={currentTrack.coverArt || 'fallback'}
         initial={{ opacity: 0 }}
         animate={{ opacity: 0.35 }}
         transition={{ duration: 0.6 }}
         className="absolute inset-0 blur-[120px] scale-150"
         style={{
-          backgroundImage: `url(${currentTrack.coverArt})`,
+          backgroundImage: currentTrack.coverArt
+            ? `url(${currentTrack.coverArt})`
+            : 'linear-gradient(to bottom right, #111, #333)',
           backgroundSize: 'cover',
           backgroundPosition: 'center',
         }}
@@ -82,11 +111,7 @@ export default function Player() {
             transition={{ duration: 0.4 }}
             className="w-full max-w-[340px] aspect-square rounded-[40px] overflow-hidden shadow-2xl"
           >
-            <img
-              src={currentTrack.coverArt}
-              alt={currentTrack.title}
-              className="h-full w-full object-cover"
-            />
+            {getArtwork()}
           </motion.div>
         </div>
 
@@ -94,7 +119,7 @@ export default function Player() {
         <div className="px-10 pb-2">
           <h1 className="text-3xl font-bold truncate">{currentTrack.title}</h1>
           <p className="text-xl text-muted-foreground mt-1 truncate">
-            {currentTrack.artist}
+            {currentTrack.artist || 'Unknown Artist'}
           </p>
         </div>
 
@@ -216,16 +241,22 @@ export default function Player() {
               {activePanel === 'upNext' && (
                 <div className="space-y-4">
                   <div className="flex items-center gap-4">
-                    <img
-                      src={currentTrack.coverArt}
-                      className="h-14 w-14 rounded-xl object-cover"
-                    />
+                    <div className="h-14 w-14 rounded-xl overflow-hidden">
+                      {currentTrack.coverArt ? (
+                        <img
+                          src={currentTrack.coverArt}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <FallbackArtwork size={56} />
+                      )}
+                    </div>
                     <div className="flex-1 overflow-hidden">
                       <p className="font-semibold truncate">
                         {currentTrack.title}
                       </p>
                       <p className="text-sm text-muted-foreground truncate">
-                        {currentTrack.artist}
+                        {currentTrack.artist || 'Unknown Artist'}
                       </p>
                     </div>
                   </div>
