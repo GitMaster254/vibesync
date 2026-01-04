@@ -42,9 +42,20 @@ export default function Player() {
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
   const RepeatIcon = repeat === 'one' ? Repeat1 : Repeat;
 
-  return (
-    <div className="fixed inset-0 z-50 bg-black text-white overflow-hidden">
+  // Close both panels
+  const closePanels = () => {
+    setShowUpNext(false);
+    setShowLyrics(false);
+  };
 
+  return (
+    <div
+      className="
+        relative min-h-screen overflow-hidden
+        bg-neutral-100 text-neutral-900
+        dark:bg-neutral-950 dark:text-white
+      "
+    >
       {/* 🌫 Dynamic Blurred Background */}
       <motion.div
         key={currentTrack.coverArt}
@@ -60,7 +71,6 @@ export default function Player() {
       />
 
       <div className="relative z-10 flex flex-col h-full">
-
         {/* Header */}
         <div className="flex items-center justify-between p-6">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
@@ -103,6 +113,10 @@ export default function Player() {
             onValueChange={(v) => seekToTime((v[0] / 100) * duration)}
             max={100}
             step={0.1}
+            className="
+              [&_[data-orientation=horizontal]]:h-[3px]
+              [&_[data-orientation=horizontal]>span]:h-[3px]
+            "
           />
           <div className="mt-3 flex justify-between text-xs text-white/30 font-bold tracking-widest">
             <span>{formatTime(currentTime)}</span>
@@ -112,7 +126,12 @@ export default function Player() {
 
         {/* Controls */}
         <div className="flex items-center justify-between px-10 pb-10">
-          <Button variant="ghost" size="icon" onClick={cycleRepeat} className="text-white/50">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={cycleRepeat}
+            className="text-white/50"
+          >
             <RepeatIcon className="h-6 w-6" />
           </Button>
 
@@ -141,13 +160,16 @@ export default function Player() {
         </div>
 
         {/* Bottom Navigation Tray */}
-        <div className="relative bg-white/5 backdrop-blur-3xl rounded-t-[40px] pt-4 pb-10 border-t border-white/10">
-          <div className="w-12 h-1.5 bg-white/20 rounded-full mx-auto mb-8" />
+        <div className="relative bg-white/5 backdrop-blur-3xl rounded-t-[40px] pt-4 pb-10 border-t border-white/10 z-10">
+          <div
+            onClick={closePanels}
+            className="w-12 h-1.5 cursor-pointer bg-white/20 rounded-full mx-auto mb-8"
+          />
 
           <div className="flex justify-around px-10">
             <button
               onClick={() => {
-                setShowUpNext(!showUpNext);
+                setShowUpNext((prev) => !prev);
                 setShowLyrics(false);
               }}
               className={cn(
@@ -160,7 +182,7 @@ export default function Player() {
 
             <button
               onClick={() => {
-                setShowLyrics(!showLyrics);
+                setShowLyrics((prev) => !prev);
                 setShowUpNext(false);
               }}
               className={cn(
@@ -173,6 +195,20 @@ export default function Player() {
           </div>
         </div>
 
+        {/* Backdrop for closing panels */}
+        <AnimatePresence>
+          {(showUpNext || showLyrics) && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={closePanels}
+              className="absolute inset-0 z-20 bg-black/30 dark:bg-black/50"
+            />
+          )}
+        </AnimatePresence>
+
         {/* 🔽 Animated Bottom Panels */}
         <AnimatePresence>
           {showUpNext && (
@@ -181,14 +217,12 @@ export default function Player() {
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 60, opacity: 0 }}
               transition={{ duration: 0.25, ease: 'easeOut' }}
-              className="absolute bottom-0 left-0 right-0 px-10 pb-20 bg-black/50 backdrop-blur-2xl"
+              className="absolute bottom-0 left-0 right-0 z-30 px-10 pb-20 bg-black/50 backdrop-blur-2xl"
             >
               <h3 className="text-sm font-bold tracking-widest mb-4">
                 UP NEXT
               </h3>
-              <p className="text-sm text-white/60">
-                Queue coming soon…
-              </p>
+              <p className="text-sm text-white/60">Queue coming soon…</p>
             </motion.div>
           )}
         </AnimatePresence>
@@ -200,19 +234,17 @@ export default function Player() {
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 60, opacity: 0 }}
               transition={{ duration: 0.25, ease: 'easeOut' }}
-              className="absolute bottom-0 left-0 right-0 px-10 pb-20 max-h-[45vh] overflow-y-auto bg-black/50 backdrop-blur-2xl"
+              className="absolute bottom-0 left-0 right-0 z-30 px-10 pb-20 max-h-[45vh] overflow-y-auto bg-black/50 backdrop-blur-2xl"
             >
               <h3 className="text-sm font-bold tracking-widest mb-4">
                 LYRICS
               </h3>
               <p className="text-sm leading-relaxed text-white/60 whitespace-pre-line">
-                Lyrics will appear here,
-                synced with the music 🎶
+                Lyrics will appear here, synced with the music 🎶
               </p>
             </motion.div>
           )}
         </AnimatePresence>
-
       </div>
     </div>
   );
