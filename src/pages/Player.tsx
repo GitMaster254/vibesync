@@ -47,7 +47,7 @@ export default function Player() {
   return (
     <div className="fixed inset-0 z-50 bg-background text-foreground overflow-hidden">
 
-      {/* 🌫 Blurred Background */}
+      {/* 🌫 Blurred Album Background */}
       <motion.div
         key={currentTrack.coverArt}
         initial={{ opacity: 0 }}
@@ -142,42 +142,28 @@ export default function Player() {
           </Button>
         </div>
 
-        {/* Bottom Tabs */}
+        {/* Bottom Mini Tabs (open drawer) */}
         <div className="relative bg-muted/60 backdrop-blur-3xl rounded-t-[40px] pt-4 pb-8 border-t border-border">
           <div className="w-12 h-1.5 bg-muted rounded-full mx-auto mb-6" />
 
           <div className="flex justify-around px-10">
             <button
-              onClick={() =>
-                setActivePanel(activePanel === 'upNext' ? null : 'upNext')
-              }
-              className={cn(
-                'text-xs font-black uppercase tracking-[0.25em]',
-                activePanel === 'upNext'
-                  ? 'text-foreground'
-                  : 'text-muted-foreground'
-              )}
+              onClick={() => setActivePanel('upNext')}
+              className="text-xs font-black uppercase tracking-[0.25em] text-muted-foreground"
             >
               UP NEXT
             </button>
 
             <button
-              onClick={() =>
-                setActivePanel(activePanel === 'lyrics' ? null : 'lyrics')
-              }
-              className={cn(
-                'text-xs font-black uppercase tracking-[0.25em]',
-                activePanel === 'lyrics'
-                  ? 'text-foreground'
-                  : 'text-muted-foreground'
-              )}
+              onClick={() => setActivePanel('lyrics')}
+              className="text-xs font-black uppercase tracking-[0.25em] text-muted-foreground"
             >
               LYRICS
             </button>
           </div>
         </div>
 
-        {/* Persistent Bottom Sheet */}
+        {/* 🔽 Persistent Bottom Drawer */}
         <AnimatePresence>
           {activePanel && (
             <motion.div
@@ -193,17 +179,40 @@ export default function Player() {
                          border-t border-border
                          px-6 pt-6 pb-10"
             >
-              {/* Sheet Header */}
+              {/* Drawer Header Tabs */}
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-sm font-bold tracking-widest">
-                  {activePanel === 'upNext' ? 'UP NEXT' : 'LYRICS'}
-                </h3>
+                <div className="flex gap-8">
+                  <button
+                    onClick={() => setActivePanel('upNext')}
+                    className={cn(
+                      'text-xs font-black uppercase tracking-[0.25em] pb-2',
+                      activePanel === 'upNext'
+                        ? 'text-foreground border-b-2 border-foreground'
+                        : 'text-muted-foreground'
+                    )}
+                  >
+                    UP NEXT
+                  </button>
+
+                  <button
+                    onClick={() => setActivePanel('lyrics')}
+                    className={cn(
+                      'text-xs font-black uppercase tracking-[0.25em] pb-2',
+                      activePanel === 'lyrics'
+                        ? 'text-foreground border-b-2 border-foreground'
+                        : 'text-muted-foreground'
+                    )}
+                  >
+                    LYRICS
+                  </button>
+                </div>
+
                 <button onClick={() => setActivePanel(null)}>
                   <X className="h-5 w-5 text-muted-foreground" />
                 </button>
               </div>
 
-              {/* Sheet Content */}
+              {/* Drawer Content */}
               {activePanel === 'upNext' && (
                 <div className="space-y-4">
                   <div className="flex items-center gap-4">
