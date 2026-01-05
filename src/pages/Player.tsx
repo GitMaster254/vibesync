@@ -16,7 +16,7 @@ import {
   RotateCcw,
   RotateCw,
   Heart,
-  ArrowRightRight,
+  ListMusic,
   Loader2 // Added for lyrics loading
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -154,7 +154,7 @@ export default function Player() {
       case 'loop-all': return <Repeat className="h-6 w-6 text-primary" />;
       case 'repeat-one': return <Repeat1 className="h-6 w-6 text-primary" />;
       case 'shuffle': return <Shuffle className="h-6 w-6 text-primary" />;
-      default: return <ArrowRightRight className="h-6 w-6 opacity-60" />; 
+      default: return <ListMusic className="h-6 w-6 opacity-60" />; 
     }
   };
 
