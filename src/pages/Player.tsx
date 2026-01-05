@@ -256,11 +256,13 @@ export default function Player() {
 
             <div className="flex-1">
               <Slider 
-                value={[progress]} 
-                onValueChange={(v) => seekToTime((v[0] / 100) * duration)} 
-                max={100} 
-                step={0.1} 
-              />
+  value={[progress]} 
+  onValueChange={(v) => seekToTime((v[0] / 100) * duration)} 
+  max={100} 
+  step={0.1}
+  className="[&_[data-slot=track]]:bg-white/20 [&_[data-slot=range]]:bg-primary"
+/>
+
             </div>
 
             <button 
