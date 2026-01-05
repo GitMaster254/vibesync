@@ -8,7 +8,6 @@ import {
   SkipForward,
   Play,
   Pause,
-  Share2,
   X,
   Music,
   GripVertical,
@@ -17,7 +16,7 @@ import {
   RotateCw,
   Heart,
   ListMusic,
-  Loader2 // Added for lyrics loading
+  Loader2
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, Reorder, useDragControls } from 'framer-motion';
@@ -137,6 +136,7 @@ export default function Player() {
     setQueue,
     playbackMode, 
     togglePlaybackMode,
+    bannerMessage,
     // Lyrics State
     lyrics,
     isFetchingLyrics,
@@ -185,6 +185,24 @@ export default function Player() {
 
   return (
     <div className="fixed inset-0 z-50 bg-background text-foreground overflow-hidden">
+      {/* Mode Update Banner */}
+      <AnimatePresence>
+        {bannerMessage && (
+          <motion.div
+            initial={{ y: -60, opacity: 0 }}
+            animate={{ y: 20, opacity: 1 }}
+            exit={{ y: -60, opacity: 0 }}
+            className="absolute top-0 left-0 right-0 z-[100] flex justify-center pointer-events-none"
+          >
+            <div className="bg-primary/20 backdrop-blur-xl border border-primary/30 px-6 py-2 rounded-full shadow-2xl">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">
+                {bannerMessage}
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <motion.div
         key={currentTrack.coverArt || 'fallback'}
         initial={{ opacity: 0 }}
@@ -225,33 +243,50 @@ export default function Player() {
           <p className="text-xl text-muted-foreground mt-1 truncate">{currentTrack.artist}</p>
         </div>
 
-        <div className="px-10 py-6">
-          <Slider value={[progress]} onValueChange={(v) => seekToTime((v[0] / 100) * duration)} max={100} step={0.1} />
-          <div className="mt-3 flex justify-between items-center text-xs text-muted-foreground font-bold tracking-widest">
-            <div className="flex items-center gap-2">
-              <button onClick={() => handleSeek(-10)} className="hover:text-primary transition-colors p-1">
-                <RotateCcw className="h-4 w-4" />
-              </button>
-              <span>{formatTime(currentTime)}</span>
+        {/* Progress Slider + 10s Seek Buttons */}
+        <div className="px-6 py-6">
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => handleSeek(-10)} 
+              className="relative flex items-center justify-center opacity-60 hover:opacity-100 transition-opacity p-2"
+            >
+              <RotateCcw className="h-7 w-7" />
+              <span className="absolute text-[8px] font-bold mt-1">10</span>
+            </button>
+
+            <div className="flex-1">
+              <Slider 
+                value={[progress]} 
+                onValueChange={(v) => seekToTime((v[0] / 100) * duration)} 
+                max={100} 
+                step={0.1} 
+              />
             </div>
-            <div className="flex items-center gap-2">
-              <span>{formatTime(duration)}</span>
-              <button onClick={() => handleSeek(10)} className="hover:text-primary transition-colors p-1">
-                <RotateCw className="h-4 w-4" />
-              </button>
-            </div>
+
+            <button 
+              onClick={() => handleSeek(10)} 
+              className="relative flex items-center justify-center opacity-60 hover:opacity-100 transition-opacity p-2"
+            >
+              <RotateCw className="h-7 w-7" />
+              <span className="absolute text-[8px] font-bold mt-1">10</span>
+            </button>
+          </div>
+
+          <div className="mt-3 flex justify-between items-center text-xs text-muted-foreground font-bold tracking-widest px-11">
+            <span>{formatTime(currentTime)}</span>
+            <span>{formatTime(duration)}</span>
           </div>
         </div>
 
         <div className="flex items-center justify-between px-10 pb-8">
-          <Button variant="ghost" size="icon" onClick={togglePlaybackMode}>
+          <Button variant="ghost" size="icon" onClick={() => { triggerHaptic(10); togglePlaybackMode(); }}>
             {getPlaybackIcon()}
           </Button>
 
           <Button variant="ghost" size="icon" onClick={previousTrack}>
             <SkipBack className="h-10 w-10" />
           </Button>
-          
+
           <Button onClick={() => setIsPlaying(!isPlaying)} className="h-20 w-20 rounded-full bg-primary/10 backdrop-blur-xl border border-border">
             {isPlaying ? <Pause className="h-10 w-10" /> : <Play className="h-10 w-10 ml-1" />}
           </Button>
@@ -272,8 +307,18 @@ export default function Player() {
         <div className="relative bg-muted/60 backdrop-blur-3xl rounded-t-[40px] pt-4 pb-8 border-t border-border">
           <div className="w-12 h-1.5 bg-muted rounded-full mx-auto mb-6" />
           <div className="flex justify-around px-10">
-            <button onClick={() => setActivePanel('upNext')} className={cn("text-xs font-black uppercase tracking-[0.25em]", activePanel === 'upNext' ? "text-primary" : "text-muted-foreground")}>UP NEXT</button>
-            <button onClick={() => setActivePanel('lyrics')} className={cn("text-xs font-black uppercase tracking-[0.25em]", activePanel === 'lyrics' ? "text-primary" : "text-muted-foreground")}>LYRICS</button>
+            <button 
+              onClick={() => setActivePanel('upNext')} 
+              className={cn("text-xs font-black uppercase tracking-[0.25em]", activePanel === 'upNext' ? "text-primary" : "text-muted-foreground")}
+            >
+              UP NEXT
+            </button>
+            <button 
+              onClick={() => setActivePanel('lyrics')} 
+              className={cn("text-xs font-black uppercase tracking-[0.25em]", activePanel === 'lyrics' ? "text-primary" : "text-muted-foreground")}
+            >
+              LYRICS
+            </button>
           </div>
         </div>
 
