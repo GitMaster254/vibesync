@@ -255,13 +255,12 @@ export default function Player() {
 
             <div className="flex-1">
               <Slider 
-                value={[progress]} 
-                onValueChange={(v) => seekToTime((v[0] / 100) * duration)} 
-                max={100} 
-                step={0.1}
-                // Monochrome Progress Bar: White for played, Translucent White for remaining
-                className="[&_[data-slot=track]]:bg-white/10 [&_[data-slot=range]]:bg-white"
-              />
+  value={[progress]} 
+  onValueChange={(v) => seekToTime((v[0] / 100) * duration)} 
+  max={100} 
+  step={0.1}
+  className="cursor-pointer" 
+/>
             </div>
 
             <button 
