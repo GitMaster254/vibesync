@@ -47,17 +47,17 @@ export interface TrackCardProps {
 }
 
 // Fallback Artwork component
+// Replace the existing FallbackArtwork component with this:
 function FallbackArtwork({ className }: { className?: string }) {
   return (
     <div className={cn(
-      "flex items-center justify-center bg-gradient-to-br from-neutral-900 to-neutral-800 rounded-lg w-full h-full",
+      "flex items-center justify-center bg-neutral-800 rounded-lg w-full h-full",
       className
     )}>
       <Music className="w-1/2 h-1/2 text-muted-foreground opacity-40" strokeWidth={1.5} />
     </div>
   );
 }
-
 /**
  * Track card component for displaying song information.
  * Calls onPlay(track) when play action is triggered.
