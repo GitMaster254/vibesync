@@ -237,10 +237,18 @@ export default function Player() {
           </motion.div>
         </div>
 
-        <div className="px-10 pb-2 text-center">
-          <h1 className="text-3xl font-bold truncate">{currentTrack.title}</h1>
-          <p className="text-xl text-muted-foreground mt-1 truncate">{currentTrack.artist}</p>
-        </div>
+        <div className="px-10 pb-4 text-center">
+  {/* Changed text-3xl to text-xl and reduced font weight slightly */}
+  <h1 className="text-xl font-semibold tracking-tight truncate">
+    {currentTrack.title}
+  </h1>
+  
+  {/* Changed text-xl to text-sm and added uppercase/tracking for a premium feel */}
+  <p className="text-sm font-medium text-muted-foreground/80 mt-1 truncate uppercase tracking-wider">
+    {currentTrack.artist}
+  </p>
+</div>
+
 
         {/* Progress Slider + 10s Seek Buttons */}
         <div className="px-6 py-6">
