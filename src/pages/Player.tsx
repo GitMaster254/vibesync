@@ -118,7 +118,6 @@ function QueueItem({
 export default function Player() {
   const navigate = useNavigate();
   const [activePanel, setActivePanel] = useState<Panel>(null);
-  const [isFavourite, setIsFavourite] = useState(false); 
 
   const {
     currentTrack,
@@ -136,8 +135,8 @@ export default function Player() {
     setQueue,
     playbackMode, 
     togglePlaybackMode,
+    toggleFavorite,
     bannerMessage,
-    // Lyrics State
     lyrics,
     isFetchingLyrics,
     lyricsError
@@ -185,7 +184,7 @@ export default function Player() {
 
   return (
     <div className="fixed inset-0 z-50 bg-background text-foreground overflow-hidden">
-      {/* Mode Update Banner */}
+      {/* Global Message Banner */}
       <AnimatePresence>
         {bannerMessage && (
           <motion.div
@@ -256,13 +255,13 @@ export default function Player() {
 
             <div className="flex-1">
               <Slider 
-  value={[progress]} 
-  onValueChange={(v) => seekToTime((v[0] / 100) * duration)} 
-  max={100} 
-  step={0.1}
-  className="[&_[data-slot=track]]:bg-white/20 [&_[data-slot=range]]:bg-primary"
-/>
-
+                value={[progress]} 
+                onValueChange={(v) => seekToTime((v[0] / 100) * duration)} 
+                max={100} 
+                step={0.1}
+                // Monochrome Progress Bar: White for played, Translucent White for remaining
+                className="[&_[data-slot=track]]:bg-white/10 [&_[data-slot=range]]:bg-white"
+              />
             </div>
 
             <button 
@@ -282,14 +281,13 @@ export default function Player() {
 
         <div className="flex items-center justify-between px-10 pb-8">
           <Button 
-  variant="ghost" 
-  size="icon" 
-  onClick={() => { triggerHaptic(10); togglePlaybackMode(); }}
-  className="hover:bg-transparent active:bg-transparent focus:bg-transparent focus-visible:ring-0 shadow-none"
->
-  {getPlaybackIcon()}
-</Button>
-
+            variant="ghost" 
+            size="icon" 
+            onClick={() => { triggerHaptic(10); togglePlaybackMode(); }}
+            className="hover:bg-transparent active:bg-transparent focus:bg-transparent focus-visible:ring-0 shadow-none border-none outline-none"
+          >
+            {getPlaybackIcon()}
+          </Button>
 
           <Button variant="ghost" size="icon" onClick={previousTrack}>
             <SkipBack className="h-10 w-10" />
@@ -306,9 +304,20 @@ export default function Player() {
           <Button 
             variant="ghost" 
             size="icon" 
-            onClick={() => { triggerHaptic(20); setIsFavourite(!isFavourite); }}
+            className="hover:bg-transparent active:bg-transparent focus:bg-transparent focus-visible:ring-0 shadow-none border-none outline-none"
+            onClick={() => { 
+              triggerHaptic(20); 
+              toggleFavorite(currentTrack); 
+            }}
           >
-            <Heart className={cn("h-6 w-6 transition-colors", isFavourite ? "fill-red-500 text-red-500 opacity-100" : "opacity-60")} />
+            <Heart 
+              className={cn(
+                "h-6 w-6 transition-all duration-300", 
+                currentTrack.favorite 
+                  ? "fill-red-500 text-red-500 scale-110 opacity-100" 
+                  : "text-foreground opacity-40 hover:opacity-100"
+              )} 
+            />
           </Button>
         </div>
 
