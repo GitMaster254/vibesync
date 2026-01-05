@@ -11,9 +11,10 @@ import {
   Share2,
   X,
   Music,
+  GripVertical,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, Reorder } from 'framer-motion';
 
 import { usePlayerStore } from '@/store/usePlayerStore';
 import { seekToTime, formatTime } from '@/lib/audio';
@@ -24,15 +25,16 @@ import { cn } from '@/lib/utils';
 
 type Panel = 'upNext' | 'lyrics' | null;
 
+// Fallback Artwork Component
 function FallbackArtwork({ size }: { size?: number }) {
   return (
     <div
       className={cn(
-        'flex items-center justify-center bg-gradient-to-br from-neutral-900 to-neutral-800',
+        'flex items-center justify-center bg-gradient-to-br from-neutral-900 to-neutral-800 rounded-lg',
         size ? `w-[${size}px] h-[${size}px]` : 'w-full h-full'
       )}
     >
-      <Music className={cn(size ? `w-[${size}px] h-[${size}px]` : 'w-24 h-24')} strokeWidth={1.5} />
+      <Music className={cn(size && size < 40 ? 'w-4 h-4' : 'w-1/2 h-1/2')} strokeWidth={1.5} />
     </div>
   );
 }
@@ -56,6 +58,7 @@ export default function Player() {
     playTrack,
     removeFromQueue,
     clearQueue,
+    setQueue,
   } = usePlayerStore();
 
   if (!currentTrack) return null;
@@ -63,16 +66,23 @@ export default function Player() {
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
   const RepeatIcon = repeat === 'one' ? Repeat1 : Repeat;
 
-  const getArtwork = (size?: number) => {
-    return currentTrack.coverArt ? (
+  // Helper to get artwork or fallback
+  const getArtwork = (track: any, size?: number) => {
+    return track.coverArt ? (
       <img
-        src={currentTrack.coverArt}
-        alt={currentTrack.title}
+        src={track.coverArt}
+        alt={track.title}
         className="h-full w-full object-cover"
       />
     ) : (
       <FallbackArtwork size={size} />
     );
+  };
+
+  const handleReorder = (newUpcoming: typeof queue) => {
+    // Keep played tracks, append the newly ordered upcoming tracks
+    const updatedQueue = [...queue.slice(0, queueIndex + 1), ...newUpcoming];
+    setQueue(updatedQueue);
   };
 
   return (
@@ -113,7 +123,7 @@ export default function Player() {
             transition={{ duration: 0.4 }}
             className="w-full max-w-[340px] aspect-square rounded-[40px] overflow-hidden shadow-2xl"
           >
-            {getArtwork()}
+            {getArtwork(currentTrack)}
           </motion.div>
         </div>
 
@@ -234,7 +244,7 @@ export default function Player() {
                   <div className="flex flex-col h-full">
                     <div className="flex justify-between items-center mb-4">
                       <h3 className="text-[10px] font-black tracking-widest text-muted-foreground uppercase">
-                        Coming Up Next
+                        Drag to Reorder
                       </h3>
                       <Button 
                         variant="ghost" 
@@ -246,41 +256,57 @@ export default function Player() {
                       </Button>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto pr-2 space-y-1 custom-scrollbar">
+                    <Reorder.Group
+                      axis="y"
+                      values={queue.slice(queueIndex + 1)}
+                      onReorder={handleReorder}
+                      className="flex-1 overflow-y-auto pr-2 space-y-1 custom-scrollbar"
+                    >
                       {queue.slice(queueIndex + 1).length > 0 ? (
                         queue.slice(queueIndex + 1).map((track, relativeIndex) => {
                           const actualIndex = queueIndex + 1 + relativeIndex;
                           return (
-                            <motion.div
-                              initial={{ opacity: 0, x: 10 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              key={`${track.id}-${actualIndex}`}
+                            <Reorder.Item
+                              key={track.id}
+                              value={track}
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              exit={{ opacity: 0 }}
+                              whileDrag={{ scale: 1.02, backgroundColor: "rgba(255,255,255,0.05)" }}
                               className="group flex items-center gap-4 p-3 rounded-2xl hover:bg-primary/5 transition-all"
                             >
+                              {/* Drag Handle */}
+                              <div className="cursor-grab active:cursor-grabbing opacity-40 hover:opacity-100 transition-opacity">
+                                <GripVertical className="h-5 w-5" />
+                              </div>
+
+                              {/* Artwork */}
                               <div 
                                 className="relative h-12 w-12 rounded-lg overflow-hidden cursor-pointer flex-shrink-0 shadow-md"
                                 onClick={() => playTrack(track, queue)}
                               >
-                                <img src={track.coverArt} className="h-full w-full object-cover" alt="" />
+                                {getArtwork(track, 48)}
                                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                   <Play className="h-5 w-5 fill-current text-white" />
                                 </div>
                               </div>
 
+                              {/* Info */}
                               <div className="flex-1 min-w-0">
                                 <p className="font-semibold truncate text-sm">{track.title}</p>
                                 <p className="text-xs text-muted-foreground truncate">{track.artist}</p>
                               </div>
 
+                              {/* Remove Button - High Visibility */}
                               <Button 
-                                variant="ghost" 
+                                variant="secondary" 
                                 size="icon" 
-                                className="opacity-0 group-hover:opacity-100 h-8 w-8 text-muted-foreground hover:text-destructive transition-opacity"
+                                className="h-8 w-8 rounded-full bg-muted/80 hover:bg-destructive hover:text-destructive-foreground opacity-100 shadow-sm border border-border transition-all"
                                 onClick={() => removeFromQueue(actualIndex)}
                               >
                                 <X className="h-4 w-4" />
                               </Button>
-                            </motion.div>
+                            </Reorder.Item>
                           );
                         })
                       ) : (
@@ -289,13 +315,12 @@ export default function Player() {
                           <p className="text-sm italic font-medium">Your queue is empty</p>
                         </div>
                       )}
-                    </div>
+                    </Reorder.Group>
                   </div>
                 )}
 
                 {activePanel === 'lyrics' && (
                   <div className="h-full overflow-y-auto pr-2 custom-scrollbar text-lg font-medium leading-relaxed text-muted-foreground/80 whitespace-pre-line pb-10">
-                    {/* Placeholder for real lyrics logic */}
                     Lyrics will appear here,
                     synced with the music 🎶
                   </div>
