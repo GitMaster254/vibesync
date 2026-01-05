@@ -24,7 +24,6 @@ import { cn } from '@/lib/utils';
 
 type Panel = 'upNext' | 'lyrics' | null;
 
-// Fallback Artwork Component
 function FallbackArtwork({ size }: { size?: number }) {
   return (
     <div
@@ -48,10 +47,15 @@ export default function Player() {
     currentTime,
     duration,
     repeat,
+    queue,
+    queueIndex,
     setIsPlaying,
     cycleRepeat,
     nextTrack,
     previousTrack,
+    playTrack,
+    removeFromQueue,
+    clearQueue,
   } = usePlayerStore();
 
   if (!currentTrack) return null;
@@ -73,7 +77,6 @@ export default function Player() {
 
   return (
     <div className="fixed inset-0 z-50 bg-background text-foreground overflow-hidden">
-
       {/* 🌫 Blurred Album Background */}
       <motion.div
         key={currentTrack.coverArt || 'fallback'}
@@ -91,7 +94,6 @@ export default function Player() {
       />
 
       <div className="relative z-10 flex flex-col h-full">
-
         {/* Header */}
         <div className="flex items-center justify-between p-6">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
@@ -151,11 +153,7 @@ export default function Player() {
             onClick={() => setIsPlaying(!isPlaying)}
             className="h-20 w-20 rounded-full bg-primary/10 backdrop-blur-xl border border-border"
           >
-            {isPlaying ? (
-              <Pause className="h-10 w-10" />
-            ) : (
-              <Play className="h-10 w-10 ml-1" />
-            )}
+            {isPlaying ? <Pause className="h-10 w-10" /> : <Play className="h-10 w-10 ml-1" />}
           </Button>
 
           <Button variant="ghost" size="icon" onClick={nextTrack}>
@@ -167,10 +165,9 @@ export default function Player() {
           </Button>
         </div>
 
-        {/* Bottom Mini Tabs (open drawer) */}
+        {/* Bottom Mini Tabs */}
         <div className="relative bg-muted/60 backdrop-blur-3xl rounded-t-[40px] pt-4 pb-8 border-t border-border">
           <div className="w-12 h-1.5 bg-muted rounded-full mx-auto mb-6" />
-
           <div className="flex justify-around px-10">
             <button
               onClick={() => setActivePanel('upNext')}
@@ -178,7 +175,6 @@ export default function Player() {
             >
               UP NEXT
             </button>
-
             <button
               onClick={() => setActivePanel('lyrics')}
               className="text-xs font-black uppercase tracking-[0.25em] text-muted-foreground"
@@ -196,87 +192,118 @@ export default function Player() {
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ duration: 0.35, ease: 'easeOut' }}
-              className="absolute bottom-0 left-0 right-0 z-40
-                         h-[60vh]
-                         rounded-t-[32px]
-                         bg-background/90
-                         backdrop-blur-2xl
-                         border-t border-border
-                         px-6 pt-6 pb-10"
+              className="absolute bottom-0 left-0 right-0 z-40 h-[65vh] rounded-t-[32px] bg-background/95 backdrop-blur-2xl border-t border-border px-6 pt-6 pb-10 flex flex-col"
             >
-              {/* Drawer Header Tabs */}
-              <div className="flex items-center justify-between mb-6">
+              {/* Drawer Header */}
+              <div className="flex items-center justify-between mb-6 flex-shrink-0">
                 <div className="flex gap-8">
                   <button
                     onClick={() => setActivePanel('upNext')}
                     className={cn(
-                      'text-xs font-black uppercase tracking-[0.25em] pb-2',
+                      'text-xs font-black uppercase tracking-[0.25em] pb-2 transition-colors',
                       activePanel === 'upNext'
-                        ? 'text-foreground border-b-2 border-foreground'
+                        ? 'text-foreground border-b-2 border-primary'
                         : 'text-muted-foreground'
                     )}
                   >
                     UP NEXT
                   </button>
-
                   <button
                     onClick={() => setActivePanel('lyrics')}
                     className={cn(
-                      'text-xs font-black uppercase tracking-[0.25em] pb-2',
+                      'text-xs font-black uppercase tracking-[0.25em] pb-2 transition-colors',
                       activePanel === 'lyrics'
-                        ? 'text-foreground border-b-2 border-foreground'
+                        ? 'text-foreground border-b-2 border-primary'
                         : 'text-muted-foreground'
                     )}
                   >
                     LYRICS
                   </button>
                 </div>
-
-                <button onClick={() => setActivePanel(null)}>
+                <button 
+                  onClick={() => setActivePanel(null)}
+                  className="p-2 hover:bg-muted rounded-full transition-colors"
+                >
                   <X className="h-5 w-5 text-muted-foreground" />
                 </button>
               </div>
 
               {/* Drawer Content */}
-              {activePanel === 'upNext' && (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-4">
-                    <div className="h-14 w-14 rounded-xl overflow-hidden">
-                      {currentTrack.coverArt ? (
-                        <img
-                          src={currentTrack.coverArt}
-                          className="h-full w-full object-cover"
-                        />
+              <div className="flex-1 overflow-hidden">
+                {activePanel === 'upNext' && (
+                  <div className="flex flex-col h-full">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-[10px] font-black tracking-widest text-muted-foreground uppercase">
+                        Coming Up Next
+                      </h3>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="text-[10px] font-bold text-muted-foreground hover:text-destructive"
+                        onClick={clearQueue}
+                      >
+                        CLEAR QUEUE
+                      </Button>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto pr-2 space-y-1 custom-scrollbar">
+                      {queue.slice(queueIndex + 1).length > 0 ? (
+                        queue.slice(queueIndex + 1).map((track, relativeIndex) => {
+                          const actualIndex = queueIndex + 1 + relativeIndex;
+                          return (
+                            <motion.div
+                              initial={{ opacity: 0, x: 10 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              key={`${track.id}-${actualIndex}`}
+                              className="group flex items-center gap-4 p-3 rounded-2xl hover:bg-primary/5 transition-all"
+                            >
+                              <div 
+                                className="relative h-12 w-12 rounded-lg overflow-hidden cursor-pointer flex-shrink-0 shadow-md"
+                                onClick={() => playTrack(track, queue)}
+                              >
+                                <img src={track.coverArt} className="h-full w-full object-cover" alt="" />
+                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <Play className="h-5 w-5 fill-current text-white" />
+                                </div>
+                              </div>
+
+                              <div className="flex-1 min-w-0">
+                                <p className="font-semibold truncate text-sm">{track.title}</p>
+                                <p className="text-xs text-muted-foreground truncate">{track.artist}</p>
+                              </div>
+
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="opacity-0 group-hover:opacity-100 h-8 w-8 text-muted-foreground hover:text-destructive transition-opacity"
+                                onClick={() => removeFromQueue(actualIndex)}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </motion.div>
+                          );
+                        })
                       ) : (
-                        <FallbackArtwork size={56} />
+                        <div className="flex flex-col items-center justify-center h-full opacity-30 py-10">
+                          <Music className="h-12 w-12 mb-2" />
+                          <p className="text-sm italic font-medium">Your queue is empty</p>
+                        </div>
                       )}
                     </div>
-                    <div className="flex-1 overflow-hidden">
-                      <p className="font-semibold truncate">
-                        {currentTrack.title}
-                      </p>
-                      <p className="text-sm text-muted-foreground truncate">
-                        {currentTrack.artist || 'Unknown Artist'}
-                      </p>
-                    </div>
                   </div>
+                )}
 
-                  <p className="text-sm text-muted-foreground">
-                    Queue coming soon…
-                  </p>
-                </div>
-              )}
-
-              {activePanel === 'lyrics' && (
-                <div className="max-h-full overflow-y-auto text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
-                  Lyrics will appear here,
-                  synced with the music 🎶
-                </div>
-              )}
+                {activePanel === 'lyrics' && (
+                  <div className="h-full overflow-y-auto pr-2 custom-scrollbar text-lg font-medium leading-relaxed text-muted-foreground/80 whitespace-pre-line pb-10">
+                    {/* Placeholder for real lyrics logic */}
+                    Lyrics will appear here,
+                    synced with the music 🎶
+                  </div>
+                )}
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
-
       </div>
     </div>
   );
