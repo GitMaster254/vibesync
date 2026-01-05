@@ -279,9 +279,15 @@ export default function Player() {
         </div>
 
         <div className="flex items-center justify-between px-10 pb-8">
-          <Button variant="ghost" size="icon" onClick={() => { triggerHaptic(10); togglePlaybackMode(); }}>
-            {getPlaybackIcon()}
-          </Button>
+          <Button 
+  variant="ghost" 
+  size="icon" 
+  onClick={() => { triggerHaptic(10); togglePlaybackMode(); }}
+  className="hover:bg-transparent active:bg-transparent focus:bg-transparent focus-visible:ring-0 shadow-none"
+>
+  {getPlaybackIcon()}
+</Button>
+
 
           <Button variant="ghost" size="icon" onClick={previousTrack}>
             <SkipBack className="h-10 w-10" />
