@@ -12,6 +12,12 @@ import {
   X,
   Music,
   GripVertical,
+  Shuffle,
+  RotateCcw,
+  RotateCw,
+  Heart,
+  ArrowRightRight,
+  Loader2 // Added for lyrics loading
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, Reorder, useDragControls } from 'framer-motion';
@@ -65,7 +71,6 @@ function QueueItem({
       id={track.id}
       dragListener={false}
       dragControls={dragControls}
-      // style allows vertical scrolling (pan-y) while preventing horizontal weirdness
       style={{ touchAction: 'pan-y' }}
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
@@ -77,7 +82,6 @@ function QueueItem({
       }}
       className="group flex items-center gap-4 p-3 rounded-2xl hover:bg-white/5 active:bg-white/10 transition-colors select-none"
     >
-      {/* Drag Handle - touch-none prevents browser interference during drag */}
       <div 
         className="cursor-grab active:cursor-grabbing p-2 -ml-2 opacity-40 hover:opacity-100 active:text-primary transition-all touch-none"
         onPointerDown={(e) => {
@@ -115,23 +119,28 @@ function QueueItem({
 export default function Player() {
   const navigate = useNavigate();
   const [activePanel, setActivePanel] = useState<Panel>(null);
+  const [isFavourite, setIsFavourite] = useState(false); 
 
   const {
     currentTrack,
     isPlaying,
     currentTime,
     duration,
-    repeat,
     queue,
     queueIndex,
     setIsPlaying,
-    cycleRepeat,
     nextTrack,
     previousTrack,
     playTrack,
     removeFromQueue,
     clearQueue,
     setQueue,
+    playbackMode, 
+    togglePlaybackMode,
+    // Lyrics State
+    lyrics,
+    isFetchingLyrics,
+    lyricsError
   } = usePlayerStore();
 
   const upcomingTracks = useMemo(() => queue.slice(queueIndex + 1), [queue, queueIndex]);
@@ -139,7 +148,15 @@ export default function Player() {
   if (!currentTrack) return null;
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
-  const RepeatIcon = repeat === 'one' ? Repeat1 : Repeat;
+
+  const getPlaybackIcon = () => {
+    switch (playbackMode) {
+      case 'loop-all': return <Repeat className="h-6 w-6 text-primary" />;
+      case 'repeat-one': return <Repeat1 className="h-6 w-6 text-primary" />;
+      case 'shuffle': return <Shuffle className="h-6 w-6 text-primary" />;
+      default: return <ArrowRightRight className="h-6 w-6 opacity-60" />; 
+    }
+  };
 
   const getArtwork = (track: any, size?: number) => {
     return track.coverArt ? (
@@ -161,9 +178,13 @@ export default function Player() {
     setQueue(updatedQueue);
   };
 
+  const handleSeek = (amount: number) => {
+    triggerHaptic(10);
+    seekToTime(Math.max(0, Math.min(duration, currentTime + amount)));
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-background text-foreground overflow-hidden">
-      {/* Blurred Background */}
       <motion.div
         key={currentTrack.coverArt || 'fallback'}
         initial={{ opacity: 0 }}
@@ -206,27 +227,53 @@ export default function Player() {
 
         <div className="px-10 py-6">
           <Slider value={[progress]} onValueChange={(v) => seekToTime((v[0] / 100) * duration)} max={100} step={0.1} />
-          <div className="mt-3 flex justify-between text-xs text-muted-foreground font-bold tracking-widest">
-            <span>{formatTime(currentTime)}</span>
-            <span>{formatTime(duration)}</span>
+          <div className="mt-3 flex justify-between items-center text-xs text-muted-foreground font-bold tracking-widest">
+            <div className="flex items-center gap-2">
+              <button onClick={() => handleSeek(-10)} className="hover:text-primary transition-colors p-1">
+                <RotateCcw className="h-4 w-4" />
+              </button>
+              <span>{formatTime(currentTime)}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span>{formatTime(duration)}</span>
+              <button onClick={() => handleSeek(10)} className="hover:text-primary transition-colors p-1">
+                <RotateCw className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         </div>
 
         <div className="flex items-center justify-between px-10 pb-8">
-          <Button variant="ghost" size="icon" onClick={cycleRepeat} className="opacity-60"><RepeatIcon className="h-6 w-6" /></Button>
-          <Button variant="ghost" size="icon" onClick={previousTrack}><SkipBack className="h-10 w-10" /></Button>
+          <Button variant="ghost" size="icon" onClick={togglePlaybackMode}>
+            {getPlaybackIcon()}
+          </Button>
+
+          <Button variant="ghost" size="icon" onClick={previousTrack}>
+            <SkipBack className="h-10 w-10" />
+          </Button>
+          
           <Button onClick={() => setIsPlaying(!isPlaying)} className="h-20 w-20 rounded-full bg-primary/10 backdrop-blur-xl border border-border">
             {isPlaying ? <Pause className="h-10 w-10" /> : <Play className="h-10 w-10 ml-1" />}
           </Button>
-          <Button variant="ghost" size="icon" onClick={nextTrack}><SkipForward className="h-10 w-10" /></Button>
-          <Button variant="ghost" size="icon" className="opacity-60"><Share2 className="h-6 w-6" /></Button>
+
+          <Button variant="ghost" size="icon" onClick={nextTrack}>
+            <SkipForward className="h-10 w-10" />
+          </Button>
+
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => { triggerHaptic(20); setIsFavourite(!isFavourite); }}
+          >
+            <Heart className={cn("h-6 w-6 transition-colors", isFavourite ? "fill-red-500 text-red-500 opacity-100" : "opacity-60")} />
+          </Button>
         </div>
 
         <div className="relative bg-muted/60 backdrop-blur-3xl rounded-t-[40px] pt-4 pb-8 border-t border-border">
           <div className="w-12 h-1.5 bg-muted rounded-full mx-auto mb-6" />
           <div className="flex justify-around px-10">
-            <button onClick={() => setActivePanel('upNext')} className="text-xs font-black uppercase tracking-[0.25em] text-muted-foreground">UP NEXT</button>
-            <button onClick={() => setActivePanel('lyrics')} className="text-xs font-black uppercase tracking-[0.25em] text-muted-foreground">LYRICS</button>
+            <button onClick={() => setActivePanel('upNext')} className={cn("text-xs font-black uppercase tracking-[0.25em]", activePanel === 'upNext' ? "text-primary" : "text-muted-foreground")}>UP NEXT</button>
+            <button onClick={() => setActivePanel('lyrics')} className={cn("text-xs font-black uppercase tracking-[0.25em]", activePanel === 'lyrics' ? "text-primary" : "text-muted-foreground")}>LYRICS</button>
           </div>
         </div>
 
@@ -244,7 +291,9 @@ export default function Player() {
                   <button onClick={() => setActivePanel('upNext')} className={cn('text-xs font-black pb-2 transition-colors', activePanel === 'upNext' ? 'text-foreground border-b-2 border-primary' : 'text-muted-foreground')}>UP NEXT</button>
                   <button onClick={() => setActivePanel('lyrics')} className={cn('text-xs font-black pb-2 transition-colors', activePanel === 'lyrics' ? 'text-foreground border-b-2 border-primary' : 'text-muted-foreground')}>LYRICS</button>
                 </div>
-                <button onClick={() => setActivePanel(null)} className="p-2 bg-muted/50 rounded-full"><X className="h-5 w-5" /></button>
+                <button onClick={() => setActivePanel(null)} className="p-2 bg-muted/50 rounded-full">
+                  <X className="h-5 w-5" />
+                </button>
               </div>
 
               <div className="flex-1 overflow-hidden">
@@ -274,14 +323,36 @@ export default function Player() {
                           />
                         ))
                       ) : (
-                        <div className="flex flex-col items-center justify-center h-full opacity-20"><Music className="h-10 w-10" /><p className="text-sm">Empty</p></div>
+                        <div className="flex flex-col items-center justify-center h-full opacity-20">
+                          <Music className="h-10 w-10" />
+                          <p className="text-sm">Empty</p>
+                        </div>
                       )}
                     </Reorder.Group>
                   </div>
                 )}
                 {activePanel === 'lyrics' && (
-                  <div className="h-full overflow-y-auto pr-2 custom-scrollbar text-lg font-medium leading-relaxed text-muted-foreground/80 whitespace-pre-line pb-10">
-                    Searching for lyrics...
+                  <div className="h-full overflow-y-auto pr-2 custom-scrollbar pb-10">
+                    {isFetchingLyrics ? (
+                      <div className="flex flex-col items-center justify-center h-full space-y-4 opacity-50">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em]">Searching Database...</p>
+                      </div>
+                    ) : lyricsError ? (
+                      <div className="flex flex-col items-center justify-center h-full text-center space-y-4 opacity-40 px-10">
+                        <Music className="h-12 w-12" />
+                        <p className="text-lg font-medium italic leading-tight">{lyricsError}</p>
+                      </div>
+                    ) : (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        key={currentTrack.id}
+                        className="text-xl font-bold leading-relaxed text-center px-4 whitespace-pre-line"
+                      >
+                        {lyrics}
+                      </motion.div>
+                    )}
                   </div>
                 )}
               </div>
