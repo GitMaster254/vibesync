@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Track } from '@/lib/db';
+import { Track, updateTrack } from '@/lib/db'; // Ensure updateTrack is imported
+import { toast } from 'sonner';
 
 /**
  * Playback modes:
@@ -21,7 +22,7 @@ interface PlayerState {
   queueIndex: number;
   originalQueue: Track[];
   upNextQueue: Track[];
-  
+
   // New State for Mode & UI
   playbackMode: PlaybackMode;
   bannerMessage: string | null;
@@ -34,11 +35,12 @@ interface PlayerState {
   setDuration: (duration: number) => void;
   setQueue: (tracks: Track[]) => void;
   setQueueIndex: (index: number) => void;
-  
+
   // Updated/New Actions
   togglePlaybackMode: () => void;
+  toggleFavorite: (track: Track) => Promise<void>; // Added for heart logic
   setBannerMessage: (message: string | null) => void;
-  
+
   nextTrack: () => void;
   previousTrack: () => void;
   playTrack: (track: Track, tracks?: Track[]) => void;
@@ -79,6 +81,29 @@ export const usePlayerStore = create<PlayerState>()(
       setQueueIndex: (index) => set({ queueIndex: index }),
       setBannerMessage: (message) => set({ bannerMessage: message }),
 
+      toggleFavorite: async (track: Track) => {
+        try {
+          const isNowFavorite = !track.favorite;
+          const updatedTrack = { ...track, favorite: isNowFavorite };
+          
+          // Update Database
+          await updateTrack(updatedTrack);
+          
+          // Update Local State immediately for reactive UI
+          set((state) => ({
+            currentTrack: state.currentTrack?.id === track.id ? updatedTrack : state.currentTrack,
+            queue: state.queue.map(t => t.id === track.id ? updatedTrack : t),
+            bannerMessage: isNowFavorite ? 'Added to Favorites' : 'Removed from Favorites'
+          }));
+
+          // Dismiss banner
+          setTimeout(() => set({ bannerMessage: null }), 2000);
+        } catch (error) {
+          console.error('Favorite toggle failed:', error);
+          toast.error('Failed to update favorite');
+        }
+      },
+
       togglePlaybackMode: () => {
         const modes: PlaybackMode[] = ['order', 'loop-all', 'repeat-one', 'shuffle'];
         const currentMode = get().playbackMode;
@@ -86,7 +111,6 @@ export const usePlayerStore = create<PlayerState>()(
 
         const { queue, currentTrack, queueIndex, originalQueue } = get();
 
-        // 1. Logic for switching INTO shuffle
         if (nextMode === 'shuffle') {
           const newOriginalQueue = originalQueue.length > 0 ? originalQueue : [...queue];
           const currentTrackInQueue = queue[queueIndex];
@@ -103,7 +127,6 @@ export const usePlayerStore = create<PlayerState>()(
             bannerMessage: 'Shuffle Mode On'
           });
         } 
-        // 2. Logic for switching OUT OF shuffle back to Order (or other modes)
         else if (currentMode === 'shuffle' && originalQueue.length > 0) {
           const originalIndex = originalQueue.findIndex(t => t.id === currentTrack?.id);
           set({
@@ -114,7 +137,6 @@ export const usePlayerStore = create<PlayerState>()(
             bannerMessage: getBannerText(nextMode)
           });
         } 
-        // 3. Normal cycle for non-shuffle modes
         else {
           set({ 
             playbackMode: nextMode,
@@ -122,7 +144,6 @@ export const usePlayerStore = create<PlayerState>()(
           });
         }
 
-        // Auto-dismiss banner after 2.5 seconds
         setTimeout(() => set({ bannerMessage: null }), 2500);
       },
 
@@ -186,12 +207,12 @@ export const usePlayerStore = create<PlayerState>()(
           originalQueue: [],
           isPlaying: true,
           currentTime: 0,
-          playbackMode: 'order' // Reset to order when picking a specific song
+          playbackMode: 'order'
         });
       },
 
       clearQueue: () => set({ queue: [], queueIndex: 0, currentTrack: null, isPlaying: false }),
-      
+
       reset: () => set({
         currentTrack: null,
         isPlaying: false,
@@ -211,7 +232,6 @@ export const usePlayerStore = create<PlayerState>()(
   )
 );
 
-// Helper for banner text
 function getBannerText(mode: PlaybackMode): string {
   switch (mode) {
     case 'loop-all': return 'Looping All Tracks';
