@@ -25,10 +25,6 @@ import { cn } from '@/lib/utils';
 
 type Panel = 'upNext' | 'lyrics' | null;
 
-/**
- * Haptic feedback utility
- * Supported on Android/Chrome, ignored by iOS/Safari
- */
 const triggerHaptic = (ms = 15) => {
   if (typeof navigator !== 'undefined' && navigator.vibrate) {
     navigator.vibrate(ms);
@@ -69,21 +65,23 @@ function QueueItem({
       id={track.id}
       dragListener={false}
       dragControls={dragControls}
+      // style allows vertical scrolling (pan-y) while preventing horizontal weirdness
+      style={{ touchAction: 'pan-y' }}
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
       whileDrag={{ 
         scale: 1.03, 
         backgroundColor: "rgba(255,255,255,0.08)",
-        boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)"
+        boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)"
       }}
-      className="group flex items-center gap-4 p-3 rounded-2xl hover:bg-white/5 active:bg-white/10 transition-colors select-none touch-none"
+      className="group flex items-center gap-4 p-3 rounded-2xl hover:bg-white/5 active:bg-white/10 transition-colors select-none"
     >
-      {/* Drag Handle with Haptic Feedback */}
+      {/* Drag Handle - touch-none prevents browser interference during drag */}
       <div 
-        className="cursor-grab active:cursor-grabbing p-2 -ml-2 opacity-40 hover:opacity-100 active:text-primary transition-all"
+        className="cursor-grab active:cursor-grabbing p-2 -ml-2 opacity-40 hover:opacity-100 active:text-primary transition-all touch-none"
         onPointerDown={(e) => {
-          triggerHaptic(20); // Feel the grab
+          triggerHaptic(20);
           dragControls.start(e);
         }}
       >
@@ -158,7 +156,7 @@ export default function Player() {
   };
 
   const handleReorder = (newUpcoming: typeof queue) => {
-    triggerHaptic(10); // Subtle tick during reorder movement
+    triggerHaptic(10);
     const updatedQueue = [...queue.slice(0, queueIndex + 1), ...newUpcoming];
     setQueue(updatedQueue);
   };
@@ -261,7 +259,8 @@ export default function Player() {
                       axis="y"
                       values={upcomingTracks}
                       onReorder={handleReorder}
-                      className="flex-1 overflow-y-auto pr-2 space-y-1 custom-scrollbar"
+                      layoutScroll
+                      className="flex-1 overflow-y-auto pr-2 space-y-1 custom-scrollbar overflow-x-hidden"
                     >
                       {upcomingTracks.length > 0 ? (
                         upcomingTracks.map((track, relativeIndex) => (
