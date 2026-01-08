@@ -307,8 +307,8 @@ export default function Settings() {
             >
               <Trash2 className="h-4 w-4" />
               Clear Cache
-            </Button>
-          </motion.div> */}
+            </Button> */}
+          </motion.div> 
 
           {/* App Info */}
           <motion.div
