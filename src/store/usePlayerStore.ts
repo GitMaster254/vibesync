@@ -1,45 +1,32 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Track } from '@/lib/db';
+import { Track, updateTrack } from '@/lib/db'; // Ensure updateTrack is imported
+import { toast } from 'sonner';
 
 /**
- * Global audio player state management using Zustand
- * Manages playback, queue, and player UI state
- * Persisted to localStorage for state recovery
+ * Playback modes:
+ * 'order': Sequential play through the queue
+ * 'loop-all': Loops the entire queue
+ * 'repeat-one': Repeats the current track infinitely
+ * 'shuffle': Randomizes the queue order
  */
+type PlaybackMode = 'order' | 'loop-all' | 'repeat-one' | 'shuffle';
+
 interface PlayerState {
-  // Current playback state
   currentTrack: Track | null;
   isPlaying: boolean;
   volume: number;
   currentTime: number;
   duration: number;
-  
-  // Queue management
   queue: Track[];
   queueIndex: number;
-  originalQueue: Track[]; // Store original queue before shuffle
-  upNextQueue: Track[]; // Tracks manually added to play next
-  
-  // Playback modes
-  shuffle: boolean;
-  repeat: 'none' | 'one' | 'all';
+  originalQueue: Track[];
+  upNextQueue: Track[];
 
-  // Audio processing
-  equalizer: {
-    enabled: boolean;
-    bands: number[]; // 10 bands: 32, 64, 125, 250, 500, 1k, 2k, 4k, 8k, 16k Hz
-    presets: { [key: string]: number[] };
-  };
-  effects: {
-    reverb: { enabled: boolean; wet: number; decay: number; preDelay: number };
-    delay: { enabled: boolean; wet: number; time: number; feedback: number };
-    distortion: { enabled: boolean; wet: number; amount: number; };
-  };
+  // New State for Mode & UI
+  playbackMode: PlaybackMode;
+  bannerMessage: string | null;
 
-  // UI state
-  isPlayerVisible: boolean;
-  
   // Actions
   setCurrentTrack: (track: Track | null) => void;
   setIsPlaying: (playing: boolean) => void;
@@ -48,31 +35,19 @@ interface PlayerState {
   setDuration: (duration: number) => void;
   setQueue: (tracks: Track[]) => void;
   setQueueIndex: (index: number) => void;
-  toggleShuffle: () => void;
-  cycleRepeat: () => void;
+
+  // Updated/New Actions
+  togglePlaybackMode: () => void;
+  toggleFavorite: (track: Track) => Promise<void>; // Added for heart logic
+  setBannerMessage: (message: string | null) => void;
+
   nextTrack: () => void;
   previousTrack: () => void;
   playTrack: (track: Track, tracks?: Track[]) => void;
-  playNext: (track: Track) => void; // Add track to play next
-  addToQueue: (track: Track) => void; // Add track to end of queue
-  removeFromQueue: (index: number) => void;
   clearQueue: () => void;
-  togglePlayer: () => void;
   reset: () => void;
-
-  // Audio processing actions
-  setEqualizerEnabled: (enabled: boolean) => void;
-  setEqualizerBand: (bandIndex: number, value: number) => void;
-  setEqualizerPreset: (preset: string) => void;
-  setReverbEnabled: (enabled: boolean) => void;
-  setReverbParams: (params: Partial<PlayerState['effects']['reverb']>) => void;
-  setDelayEnabled: (enabled: boolean) => void;
-  setDelayParams: (params: Partial<PlayerState['effects']['delay']>) => void;
-  setDistortionEnabled: (enabled: boolean) => void;
-  setDistortionParams: (params: Partial<PlayerState['effects']['distortion']>) => void;
 }
 
-// Helper function to shuffle array
 const shuffleArray = <T,>(array: T[]): T[] => {
   const shuffled = [...array];
   for (let i = shuffled.length - 1; i > 0; i--) {
@@ -85,7 +60,6 @@ const shuffleArray = <T,>(array: T[]): T[] => {
 export const usePlayerStore = create<PlayerState>()(
   persist(
     (set, get) => ({
-      // Initial state
       currentTrack: null,
       isPlaying: false,
       volume: 0.7,
@@ -95,11 +69,9 @@ export const usePlayerStore = create<PlayerState>()(
       queueIndex: 0,
       originalQueue: [],
       upNextQueue: [],
-      shuffle: false,
-      repeat: 'none',
-      isPlayerVisible: false,
-      
-      // Basic setters
+      playbackMode: 'order',
+      bannerMessage: null,
+
       setCurrentTrack: (track) => set({ currentTrack: track }),
       setIsPlaying: (playing) => set({ isPlaying: playing }),
       setVolume: (volume) => set({ volume: Math.max(0, Math.min(1, volume)) }),
@@ -107,214 +79,113 @@ export const usePlayerStore = create<PlayerState>()(
       setDuration: (duration) => set({ duration }),
       setQueue: (tracks) => set({ queue: tracks }),
       setQueueIndex: (index) => set({ queueIndex: index }),
-      
-      // Toggle functions
-      toggleShuffle: () => {
-        const { shuffle, queue, currentTrack, queueIndex, originalQueue } = get();
-        
-        if (!shuffle) {
-          // Turning shuffle ON
+      setBannerMessage: (message) => set({ bannerMessage: message }),
+
+      toggleFavorite: async (track: Track) => {
+        try {
+          const isNowFavorite = !track.favorite;
+          const updatedTrack = { ...track, favorite: isNowFavorite };
+          
+          // Update Database
+          await updateTrack(updatedTrack);
+          
+          // Update Local State immediately for reactive UI
+          set((state) => ({
+            currentTrack: state.currentTrack?.id === track.id ? updatedTrack : state.currentTrack,
+            queue: state.queue.map(t => t.id === track.id ? updatedTrack : t),
+            bannerMessage: isNowFavorite ? 'Added to Favorites' : 'Removed from Favorites'
+          }));
+
+          // Dismiss banner
+          setTimeout(() => set({ bannerMessage: null }), 2000);
+        } catch (error) {
+          console.error('Favorite toggle failed:', error);
+          toast.error('Failed to update favorite');
+        }
+      },
+
+      togglePlaybackMode: () => {
+        const modes: PlaybackMode[] = ['order', 'loop-all', 'repeat-one', 'shuffle'];
+        const currentMode = get().playbackMode;
+        const nextMode = modes[(modes.indexOf(currentMode) + 1) % modes.length];
+
+        const { queue, currentTrack, queueIndex, originalQueue } = get();
+
+        if (nextMode === 'shuffle') {
           const newOriginalQueue = originalQueue.length > 0 ? originalQueue : [...queue];
           const currentTrackInQueue = queue[queueIndex];
-          
-          // Shuffle all tracks except current
           const otherTracks = queue.filter((_, idx) => idx !== queueIndex);
-          const shuffledOthers = shuffleArray(otherTracks);
-          
-          // New queue: current track first, then shuffled
-          const newQueue = currentTrackInQueue 
-            ? [currentTrackInQueue, ...shuffledOthers]
+          const shuffledQueue = currentTrackInQueue 
+            ? [currentTrackInQueue, ...shuffleArray(otherTracks)]
             : shuffleArray(queue);
-          
+
           set({
-            shuffle: true,
-            queue: newQueue,
+            playbackMode: 'shuffle',
+            queue: shuffledQueue,
             queueIndex: currentTrackInQueue ? 0 : queueIndex,
             originalQueue: newOriginalQueue,
+            bannerMessage: 'Shuffle Mode On'
           });
-        } else {
-          // Turning shuffle OFF - restore original queue
-          if (originalQueue.length > 0 && currentTrack) {
-            const originalIndex = originalQueue.findIndex(t => t.id === currentTrack.id);
-            set({
-              shuffle: false,
-              queue: originalQueue,
-              queueIndex: originalIndex >= 0 ? originalIndex : 0,
-              originalQueue: [],
-            });
-          } else {
-            set({ shuffle: false });
-          }
-        }
-      },
-      
-      cycleRepeat: () => set((state) => ({
-        repeat: state.repeat === 'none' ? 'all' : state.repeat === 'all' ? 'one' : 'none'
-      })),
-      
-      // Play next - add track to play immediately after current
-      playNext: (track) => {
-        const { queue, queueIndex, upNextQueue } = get();
-        
-        if (!queue || queue.length === 0) {
-          // No queue exists, just play the track
+        } 
+        else if (currentMode === 'shuffle' && originalQueue.length > 0) {
+          const originalIndex = originalQueue.findIndex(t => t.id === currentTrack?.id);
           set({
-            currentTrack: track,
-            queue: [track],
-            queueIndex: 0,
-            isPlaying: true,
-            currentTime: 0,
+            playbackMode: nextMode,
+            queue: originalQueue,
+            queueIndex: originalIndex >= 0 ? originalIndex : 0,
+            originalQueue: [],
+            bannerMessage: getBannerText(nextMode)
           });
-          return;
-        }
-        
-        // Add to upNextQueue for priority handling
-        const newUpNextQueue = [...upNextQueue, track];
-        
-        // Insert track right after current position
-        const newQueue = [
-          ...queue.slice(0, queueIndex + 1),
-          track,
-          ...queue.slice(queueIndex + 1),
-        ];
-        
-        set({
-          queue: newQueue,
-          upNextQueue: newUpNextQueue,
-        });
-      },
-      
-      // Add to queue - add track to end of queue
-      addToQueue: (track) => {
-        const { queue } = get();
-        
-        if (!queue || queue.length === 0) {
-          set({
-            currentTrack: track,
-            queue: [track],
-            queueIndex: 0,
-            isPlaying: true,
-            currentTime: 0,
+        } 
+        else {
+          set({ 
+            playbackMode: nextMode,
+            bannerMessage: getBannerText(nextMode)
           });
-          return;
-        }
-        
-        set({
-          queue: [...queue, track],
-        });
-      },
-      
-      // Remove track from queue
-      removeFromQueue: (index) => {
-        const { queue, queueIndex } = get();
-        
-        if (index < 0 || index >= queue.length) return;
-        
-        const newQueue = queue.filter((_, idx) => idx !== index);
-        
-        // Adjust queueIndex if necessary
-        let newQueueIndex = queueIndex;
-        if (index < queueIndex) {
-          newQueueIndex = Math.max(0, queueIndex - 1);
-        } else if (index === queueIndex && newQueue.length > 0) {
-          // If removing current track, play next in queue
-          newQueueIndex = Math.min(queueIndex, newQueue.length - 1);
-          set({
-            queue: newQueue,
-            queueIndex: newQueueIndex,
-            currentTrack: newQueue[newQueueIndex] || null,
-          });
-          return;
-        }
-        
-        set({
-          queue: newQueue,
-          queueIndex: newQueueIndex,
-        });
-      },
-      
-      // Clear entire queue
-      clearQueue: () => {
-        set({
-          queue: [],
-          queueIndex: 0,
-          upNextQueue: [],
-          currentTrack: null,
-          isPlaying: false,
-        });
-      },
-      
-      // Navigation
-      nextTrack: () => {
-        let { queue, queueIndex, repeat, currentTrack, upNextQueue } = get();
-        
-        // Fallback: if no queue, treat currentTrack as single-item queue
-        if (!queue || queue.length === 0) {
-          if (currentTrack) {
-            queue = [currentTrack];
-            queueIndex = 0;
-            set({ queue, queueIndex });
-          } else {
-            return;
-          }
         }
 
-        if (repeat === 'one') {
+        setTimeout(() => set({ bannerMessage: null }), 2500);
+      },
+
+      nextTrack: () => {
+        const { queue, queueIndex, playbackMode } = get();
+        if (queue.length === 0) return;
+
+        if (playbackMode === 'repeat-one') {
           set({ currentTime: 0, isPlaying: true });
           return;
         }
 
         let nextIndex = queueIndex + 1;
-
         if (nextIndex >= queue.length) {
-          if (repeat === 'all') {
+          if (playbackMode === 'loop-all' || playbackMode === 'shuffle') {
             nextIndex = 0;
           } else {
-            // End of queue - stop playing
             set({ isPlaying: false, currentTime: 0 });
             return;
           }
         }
 
-        // Remove from upNextQueue if it was manually added
-        const nextTrack = queue[nextIndex];
-        const newUpNextQueue = upNextQueue.filter(t => t.id !== nextTrack?.id);
-
         set({
           queueIndex: nextIndex,
-          currentTrack: nextTrack,
+          currentTrack: queue[nextIndex],
           currentTime: 0,
           isPlaying: true,
-          upNextQueue: newUpNextQueue,
         });
       },
-      
-      previousTrack: () => {
-        let { queue, queueIndex, currentTime, currentTrack } = get();
-        
-        // Fallback: if no queue, treat currentTrack as single-item queue
-        if (!queue || queue.length === 0) {
-          if (currentTrack) {
-            queue = [currentTrack];
-            queueIndex = 0;
-            set({ queue, queueIndex, currentTime: 0 });
-          } else {
-            return;
-          }
-          return;
-        }
 
-        // If more than 3 seconds in, restart current track
+      previousTrack: () => {
+        const { queue, queueIndex, currentTime } = get();
+        if (queue.length === 0) return;
+
         if (currentTime > 3) {
-          set({ currentTime: 0, isPlaying: true });
+          set({ currentTime: 0 });
           return;
         }
 
         const prevIndex = queueIndex - 1;
-
         if (prevIndex < 0) {
-          // Already at start, just restart
-          set({ currentTime: 0, isPlaying: true });
+          set({ currentTime: 0 });
           return;
         }
 
@@ -325,49 +196,47 @@ export const usePlayerStore = create<PlayerState>()(
           isPlaying: true,
         });
       },
-      
-      // Play a specific track
+
       playTrack: (track, tracks) => {
         const currentQueue = tracks && tracks.length > 0 ? tracks : [track];
         const index = currentQueue.findIndex(t => t.id === track.id);
-
         set({
           currentTrack: track,
           queue: currentQueue,
           queueIndex: index >= 0 ? index : 0,
-          originalQueue: [], // Reset shuffle state
-          upNextQueue: [], // Clear manual queue
+          originalQueue: [],
           isPlaying: true,
           currentTime: 0,
-          isPlayerVisible: true,
+          playbackMode: 'order'
         });
       },
-      
-      // Toggle player visibility
-      togglePlayer: () => set((state) => ({ isPlayerVisible: !state.isPlayerVisible })),
-      
-      // Reset player
+
+      clearQueue: () => set({ queue: [], queueIndex: 0, currentTrack: null, isPlaying: false }),
+
       reset: () => set({
         currentTrack: null,
         isPlaying: false,
         currentTime: 0,
-        duration: 0,
         queue: [],
-        queueIndex: 0,
-        originalQueue: [],
-        upNextQueue: [],
-        isPlayerVisible: false,
+        playbackMode: 'order',
+        bannerMessage: null
       }),
     }),
     {
       name: 'vibesync-player-storage',
-      // Only persist certain fields
       partialize: (state) => ({
         volume: state.volume,
-        shuffle: state.shuffle,
-        repeat: state.repeat,
-        // Don't persist playback state to avoid stale data
+        playbackMode: state.playbackMode,
       }),
     }
   )
 );
+
+function getBannerText(mode: PlaybackMode): string {
+  switch (mode) {
+    case 'loop-all': return 'Looping All Tracks';
+    case 'repeat-one': return 'Repeating Current Track';
+    case 'shuffle': return 'Shuffle Mode On';
+    default: return 'Sequential Play';
+  }
+}

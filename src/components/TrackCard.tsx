@@ -1,4 +1,4 @@
-import { Heart, Play, Pause, MoreVertical, Trash2, X, Share, Plus, Check, SkipForward, FileText, Download } from 'lucide-react';
+import { Heart, Play, Pause, MoreVertical, Trash2, X, Share, Plus, Check, SkipForward, FileText, Download, Music } from 'lucide-react';
 import { Track } from '@/lib/db';
 import { usePlayerStore } from '@/store/usePlayerStore';
 import { Button } from './ui/button';
@@ -14,8 +14,6 @@ import {
 import {
   Sheet,
   SheetContent,
-  SheetHeader,
-  SheetTitle,
 } from '@/components/ui/sheet';
 import { Checkbox } from './ui/checkbox';
 import { useState } from 'react';
@@ -48,6 +46,18 @@ export interface TrackCardProps {
   onToggleSelection: (trackId: string) => void;
 }
 
+// Fallback Artwork component
+// Replace the existing FallbackArtwork component with this:
+function FallbackArtwork({ className }: { className?: string }) {
+  return (
+    <div className={cn(
+      "flex items-center justify-center bg-neutral-800 rounded-lg w-full h-full",
+      className
+    )}>
+      <Music className="w-1/2 h-1/2 text-muted-foreground opacity-40" strokeWidth={1.5} />
+    </div>
+  );
+}
 /**
  * Track card component for displaying song information.
  * Calls onPlay(track) when play action is triggered.
@@ -95,11 +105,12 @@ export function TrackCard({
 
   const handleDownload = async () => {
     if (isDownloading) return;
-    
+
     setIsDownloading(true);
     try {
       // Determine the source URL for the track
       let sourceUrl = track.fileUrl;
+                    
       
       // Check if this is a Jamendo track with previewUrl (ExplorerTrack format)
       const jamendoTrack = track as any;
@@ -122,7 +133,7 @@ export function TrackCard({
           const urlObj = new URL(sourceUrl);
           const currentOrigin = window.location.origin;
           const sourceOrigin = urlObj.origin;
-          
+
           // Use proxy if it's a different origin (external service)
           if (sourceOrigin !== currentOrigin) {
             shouldUseProxy = true;
@@ -149,7 +160,7 @@ export function TrackCard({
         try {
           response = await fetch(finalUrl);
           if (response.ok) break; // Success, exit retry loop
-          
+
           // If it's a 4xx/5xx error and we haven't tried the original URL yet
           if (attempt === 0 && shouldUseProxy) {
             console.log('Proxy failed, trying original URL...');
@@ -185,18 +196,20 @@ export function TrackCard({
       // Get the blob
       const blob = await response.blob();
       
+ 
       // Basic validation - check if blob has reasonable size for audio
       if (blob.size < 1024) { // Less than 1KB is suspicious
         throw new Error('Downloaded file is too small to be a valid audio file');
       }
       
+ 
       // Create a temporary URL for the blob
       const blobUrl = URL.createObjectURL(blob);
-      
+
       // Create download link
       const link = document.createElement('a');
       link.href = blobUrl;
-      
+
       // Create a filename with artist and title
       // Try to determine extension from the original URL or content type
       let extension = 'mp3'; // default
@@ -214,21 +227,21 @@ export function TrackCard({
           extension = urlExtension || 'mp3';
         }
       }
-      
+
       const filename = `${track.artist} - ${track.title}.${extension}`
         .replace(/[^a-z0-9]/gi, '_')
         .toLowerCase();
-      
+
       link.download = filename;
-      
+
       // Trigger download
       document.body.appendChild(link);
       link.click();
-      
+
       // Cleanup
       document.body.removeChild(link);
       URL.revokeObjectURL(blobUrl);
-      
+
     } catch (error) {
       console.error('Download failed:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -278,13 +291,13 @@ export function TrackCard({
       <div
         className={cn(
           'group flex items-center gap-2 sm:gap-3 rounded-lg p-2 sm:p-3 transition-all hover:bg-muted/50 overflow-hidden cursor-pointer',
-          isCurrentTrack && 'bg-muted/50',
+          isCurrentTrack && 'bg-primary/5', // Subtler highlight
           isSelected && 'bg-primary/10'
         )}
         onClick={handleCardClick}
       >
-        {/* Album art / Play button */}
-        <div className="relative h-12 w-12 sm:h-14 sm:w-14 flex-shrink-0">
+        {/* Updated Artwork Section */}
+        <div className="relative h-12 w-12 sm:h-14 sm:w-14 flex-shrink-0 shadow-sm">
           {track.coverArt ? (
             <img
               src={track.coverArt}
@@ -293,8 +306,9 @@ export function TrackCard({
               loading="lazy"
             />
           ) : (
-            <div className="h-full w-full rounded-lg bg-gradient-primary" />
+            <FallbackArtwork />
           )}
+          
           {!isInSelectionMode && (
             <Button
               variant="ghost"
@@ -304,7 +318,7 @@ export function TrackCard({
                 handlePlay();
               }}
               className={cn(
-                'absolute inset-0 h-full w-full bg-black/40 opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100',
+                'absolute inset-0 h-full w-full bg-black/40 opacity-0 backdrop-blur-[2px] transition-opacity group-hover:opacity-100 rounded-lg',
                 isCurrentTrack && isPlaying && 'opacity-100'
               )}
             >
@@ -321,12 +335,12 @@ export function TrackCard({
         <div className="flex-1 min-w-0 overflow-hidden">
           <p className={cn(
             'truncate font-semibold text-sm break-all line-clamp-1',
-            isCurrentTrack && 'text-primary'
+            isCurrentTrack && 'text-primary font-bold' // Make active track pop more
           )}>
             {track.title}
           </p>
           <p className="truncate text-xs text-muted-foreground break-all line-clamp-1">
-            {[track.artist, track.album].filter(Boolean).join(' • ')} • {formatTime(track.duration)}
+            {track.artist} {track.album && `• ${track.album}`} • {formatTime(track.duration)}
           </p>
         </div>
 
@@ -372,30 +386,27 @@ export function TrackCard({
 
       {/* Bottom Sheet for Track Options */}
       <Sheet open={isBottomSheetOpen} onOpenChange={setIsBottomSheetOpen}>
-        <SheetContent side="bottom" className="rounded-t-lg">
-          {/* Custom Header with Track Info */}
-          <div className="flex items-center gap-3 pb-4 border-b border-border mb-4">
-            {/* Album Artwork */}
-            <div className="h-14 w-14 flex-shrink-0 rounded-lg overflow-hidden">
+        <SheetContent side="bottom" className="rounded-t-[32px] px-6 pb-10">
+          {/* Updated Bottom Sheet Header Artwork */}
+          <div className="flex items-center gap-4 pb-6 border-b border-border/50 mb-4">
+            <div className="h-16 w-16 flex-shrink-0 rounded-xl overflow-hidden shadow-lg">
               {track.coverArt ? (
                 <img
                   src={track.coverArt}
                   alt={`${track.title} cover`}
                   className="h-full w-full object-cover"
-                  loading="lazy"
                 />
               ) : (
-                <div className="h-full w-full bg-gradient-primary" />
+                <FallbackArtwork />
               )}
             </div>
-            
-            {/* Track Info */}
+
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-base truncate">{track.title}</h3>
+              <h3 className="font-bold text-lg truncate">{track.title}</h3>
               <p className="text-sm text-muted-foreground truncate">{track.artist}</p>
             </div>
           </div>
-          
+
           <div className="space-y-2">
             {/* Play */}
             <Button

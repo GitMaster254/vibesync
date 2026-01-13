@@ -1,4 +1,4 @@
-import { Music, Info, Shield, Trash2, Share } from 'lucide-react';
+import { Music, Info, Shield, Trash2, Share, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { addTrack, type Track } from '@/lib/db';
@@ -6,6 +6,7 @@ import { type ImportProgress } from '@/lib/importWithProgress';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Switch } from '@/components/ui/switch';
 import { getStoredTheme, getSystemTheme, setTheme, type Theme } from '@/lib/theme';
 import { cn } from '@/lib/utils';
@@ -15,6 +16,7 @@ import { isHapticsEnabled } from '@/lib/haptics';
  * Settings page - App configuration and info
  */
 export default function Settings() {
+  const navigate = useNavigate();
   // Import progress state
   const [importProgress, setImportProgress] = useState<ImportProgress>({ active: false, total: 0, current: 0 });
   const [importMinimized, setImportMinimized] = useState(false);
@@ -176,6 +178,12 @@ export default function Settings() {
       ],
     },
     {
+      title: 'Legal',
+      items: [
+        { icon: FileText, label: 'Terms of Service', value: 'View', link: '/terms' },
+      ],
+    },
+    {
       title: 'Storage',
       items: [
         { icon: Shield, label: 'Data stored locally', value: 'Secure' },
@@ -208,94 +216,6 @@ export default function Settings() {
           </div>
         </motion.div>
 
-        {/* Party Effect Selector */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="rounded-lg border border-border bg-card p-4 mb-4"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-muted-foreground uppercase">
-              Party Mode
-            </h2>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setKaraokeMinimized(!karaokeMinimized)}
-              className="h-8 px-3 text-xs"
-            >
-              {karaokeMinimized ? 'Expand' : 'Minimize'}
-            </Button>
-          </div>
-          
-          {!karaokeMinimized && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.2 }}
-              className="flex flex-col gap-3"
-            >
-              <label className="font-medium">Transition Effect</label>
-              <div className="grid gap-2">
-                {karaokeEffects.map((effect) => (
-                  <button
-                    key={effect.value}
-                    onClick={() => handleKaraokeEffectChange(effect.value)}
-                    className={cn(
-                      'flex items-start gap-3 p-3 rounded-lg border-2 transition-all text-left',
-                      karaokeEffect === effect.value
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border hover:border-primary/50 hover:bg-muted/50'
-                    )}
-                  >
-                    <div className="flex-1">
-                      <div className="font-medium text-sm">{effect.label}</div>
-                      <div className="text-xs text-muted-foreground">{effect.description}</div>
-                    </div>
-                    {karaokeEffect === effect.value && (
-                      <div className="h-5 w-5 rounded-full bg-primary flex items-center justify-center">
-                        <svg className="h-3 w-3 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                        </svg>
-                      </div>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          )}
-          
-          {karaokeMinimized && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.2 }}
-              className="text-sm text-muted-foreground"
-            >
-              Current: {karaokeEffects.find(e => e.value === karaokeEffect)?.label}
-            </motion.div>
-          )}
-        </motion.div>
-
-        {/* Haptics */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.06 }}
-          className="rounded-lg border border-border bg-card p-4 mb-4"
-        >
-          <h2 className="mb-3 text-sm font-semibold text-muted-foreground uppercase">
-            Haptics
-          </h2>
-          <div className="flex items-center justify-between mb-2">
-            <span className="font-medium">Vibrate on play/pause/skip</span>
-            <Switch checked={haptics} onCheckedChange={handleHapticsToggle} />
-          </div>
-          <p className="text-xs text-muted-foreground">Only on supported devices. You can disable this anytime.</p>
-        </motion.div>
-
         {/* Ambient Mode */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -310,7 +230,6 @@ export default function Settings() {
             <span className="font-medium">Show subtle colors when idle</span>
             <Switch checked={ambientEnabled} onCheckedChange={toggleAmbient} />
           </div>
-          <p className="text-xs text-muted-foreground">Fills the screen with a soft, color-cycling background after 30s of inactivity. Tap to dismiss.</p>
         </motion.div>
 
         {/* Ripple overlay for theme transition */}
@@ -344,7 +263,14 @@ export default function Settings() {
               </h2>
               <div className="space-y-3">
                 {section.items.map((item) => (
-                  <div key={item.label} className="flex items-center justify-between">
+                  <div
+                    key={item.label}
+                    className={cn(
+                      "flex items-center justify-between",
+                      item.link && "cursor-pointer hover:bg-accent/50 rounded-lg -m-1 p-1 transition-colors"
+                    )}
+                    onClick={item.link ? () => navigate(item.link!) : undefined}
+                  >
                     <div className="flex items-center gap-3">
                       <item.icon className="h-5 w-5 text-muted-foreground" />
                       <span className="font-medium">{item.label}</span>
@@ -374,15 +300,15 @@ export default function Settings() {
               <Share className="h-4 w-4" />
               Share App
             </Button>
-            <Button
+           {/* <Button
               variant="destructive"
               className="w-full gap-2"
               onClick={handleClearCache}
             >
               <Trash2 className="h-4 w-4" />
               Clear Cache
-            </Button>
-          </motion.div>
+            </Button> */}
+          </motion.div> 
 
           {/* App Info */}
           <motion.div

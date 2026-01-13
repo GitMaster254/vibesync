@@ -1,499 +1,434 @@
-import { useEffect, useState, useRef } from 'react';
-import { ChevronDown, Heart, Shuffle, Repeat, Repeat1, SkipBack, SkipForward, Play, Pause, X } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import {
+  ChevronDown,
+  MoreVertical,
+  Repeat,
+  Repeat1,
+  SkipBack,
+  SkipForward,
+  Play,
+  Pause,
+  X,
+  Music,
+  GripVertical,
+  Shuffle,
+  RotateCcw,
+  RotateCw,
+  Heart,
+  ListMusic,
+  Loader2
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence, Reorder, useDragControls } from 'framer-motion';
+
 import { usePlayerStore } from '@/store/usePlayerStore';
 import { seekToTime, formatTime } from '@/lib/audio';
+
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
-import { motion, useMotionValue, useTransform, PanInfo, AnimatePresence } from 'framer-motion';
-import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from '@/components/ui/carousel';
-import VisualizerBars from '@/components/VisualizerBars';
-import { updateTrack } from '@/lib/db';
-import { toast } from 'sonner';
-import { getKaraokeEffect, getEffectAnimation } from '@/lib/karaokeEffects';
-import { vibrate } from '@/lib/haptics';
-import { ListeningParty } from '@/components/ListeningParty';
-import { getCurrentUser } from '@/lib/auth';
 
-/**
- * Full-screen player view
- * Shows album art, controls, and progress
- * Includes fullscreen karaoke mode with visual transitions
- */
+type Panel = 'upNext' | 'lyrics' | null;
+
+const triggerHaptic = (ms = 15) => {
+  if (typeof navigator !== 'undefined' && navigator.vibrate) {
+    navigator.vibrate(ms);
+  }
+};
+
+function FallbackArtwork({ size }: { size?: number }) {
+  return (
+    <div
+      className={cn(
+        'flex items-center justify-center bg-gradient-to-br from-neutral-900 to-neutral-800 rounded-lg',
+        size ? `w-[${size}px] h-[${size}px]` : 'w-full h-full'
+      )}
+    >
+      <Music className={cn(size && size < 40 ? 'w-4 h-4' : 'w-1/2 h-1/2')} strokeWidth={1.5} />
+    </div>
+  );
+}
+
+function QueueItem({ 
+  track, 
+  actualIndex, 
+  onPlay, 
+  onRemove, 
+  getArtwork 
+}: { 
+  track: any, 
+  actualIndex: number, 
+  onPlay: () => void, 
+  onRemove: (idx: number) => void,
+  getArtwork: (track: any, size: number) => JSX.Element
+}) {
+  const dragControls = useDragControls();
+
+  return (
+    <Reorder.Item
+      value={track}
+      id={track.id}
+      dragListener={false}
+      dragControls={dragControls}
+      style={{ touchAction: 'pan-y' }}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      whileDrag={{ 
+        scale: 1.03, 
+        backgroundColor: "rgba(255,255,255,0.08)",
+        boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1)"
+      }}
+      className="group flex items-center gap-4 p-3 rounded-2xl hover:bg-white/5 active:bg-white/10 transition-colors select-none"
+    >
+      <div 
+        className="cursor-grab active:cursor-grabbing p-2 -ml-2 opacity-40 hover:opacity-100 active:text-primary transition-all touch-none"
+        onPointerDown={(e) => {
+          triggerHaptic(20);
+          dragControls.start(e);
+        }}
+      >
+        <GripVertical className="h-5 w-5" />
+      </div>
+
+      <div className="relative h-12 w-12 rounded-lg overflow-hidden cursor-pointer flex-shrink-0 shadow-md" onClick={onPlay}>
+        {getArtwork(track, 48)}
+        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+          <Play className="h-5 w-5 fill-current text-white" />
+        </div>
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <p className="font-semibold truncate text-sm">{track.title}</p>
+        <p className="text-xs text-muted-foreground truncate">{track.artist}</p>
+      </div>
+
+      <Button 
+        variant="secondary" 
+        size="icon" 
+        className="h-8 w-8 rounded-full bg-muted/50 hover:bg-destructive hover:text-white transition-all shadow-sm"
+        onClick={() => onRemove(actualIndex)}
+      >
+        <X className="h-4 w-4" />
+      </Button>
+    </Reorder.Item>
+  );
+}
+
 export default function Player() {
   const navigate = useNavigate();
-  const [karaokeMode, setKaraokeMode] = useState(false);
-  const [showTransition, setShowTransition] = useState(false);
-  const [showSpeakerTip, setShowSpeakerTip] = useState(false);
-  const [performance, setPerformance] = useState<number | null>(null);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const x = useMotionValue(0);
-  const opacity = useTransform(x, [-200, 0], [0, 1]);
-  const [carouselApi, setCarouselApi] = useState<CarouselApi | null>(null);
-  
+  const [activePanel, setActivePanel] = useState<Panel>(null);
+
   const {
     currentTrack,
     isPlaying,
     currentTime,
     duration,
-    shuffle,
-    repeat,
+    queue,
+    queueIndex,
     setIsPlaying,
-    toggleShuffle,
-    cycleRepeat,
     nextTrack,
     previousTrack,
+    playTrack,
+    removeFromQueue,
+    clearQueue,
+    setQueue,
+    playbackMode, 
+    togglePlaybackMode,
+    toggleFavorite,
+    bannerMessage,
+    lyrics,
+    isFetchingLyrics,
+    lyricsError
   } = usePlayerStore();
 
-  // Exit fullscreen
-  const exitFullscreen = async () => {
-    try {
-      if (document.fullscreenElement) {
-        await document.exitFullscreen();
-        setIsFullscreen(false);
-      }
-    } catch (err) {
-      console.error('Exit fullscreen error:', err);
-    }
-  };
+  const upcomingTracks = useMemo(() => queue.slice(queueIndex + 1), [queue, queueIndex]);
 
-  // Handle fullscreen change events
-  useEffect(() => {
-
-    // document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => {
-      setShowTransition(false);
-      // document.removeEventListener('fullscreenchange', handleFullscreenChange);
-    };
-  }, [karaokeMode]);
-
-  // Handle karaoke mode activation
-  const activateKaraokeMode = async () => {
-    setShowTransition(true);
-   // await enterFullscreen();
-    // Wait for transition animation
-    setTimeout(() => {
-      setKaraokeMode(true);
-      setShowSpeakerTip(true);
-      setShowTransition(false);
-      // Pause and seek to zero
-      setIsPlaying(false);
-      seekToTime(0);
-      toast.info('Party mode activated! 🎤');
-    }, 800);
-  };
-
-  // Handle karaoke mode deactivation
-  const deactivateKaraokeMode = async () => {
-    // First exit karaoke mode to trigger the transition
-    setKaraokeMode(false);
-    setPerformance(null);
-    setShowTransition(true);
-    
-    // Wait for transition animation, then clear overlay and exit fullscreen
-    setTimeout(async () => {
-      setShowTransition(false);
-      try { await exitFullscreen(); } catch (e) { /* ignore */ }
-    }, 800);
-  };
-
-  // Handle swipe to karaoke mode
-  const handleDragEnd = (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-    if (info.offset.x < -100 && !karaokeMode) {
-      // Swiped left on album art -> Karaoke
-      activateKaraokeMode();
-    } else if (info.offset.x > 100 && !karaokeMode) {
-      // Swiped right on album art -> go to Visualizer slide
-      carouselApi?.scrollNext();
-    } else if (info.offset.x > 100 && karaokeMode) {
-      // Swiped right while in karaoke -> exit karaoke
-      deactivateKaraokeMode();
-    }
-    x.set(0);
-  };
-
-  // Show placeholder when no track is playing instead of redirecting
-  // This prevents navigation loops during player state transitions
-  useEffect(() => {
-    if (!currentTrack) {
-      // Don't redirect immediately, let the component show a no-track state
-      console.log('Player: No current track, showing placeholder');
-    }
-  }, [currentTrack]);
-
-  useEffect(() => {
-  if (showSpeakerTip) {
-    const timer = setTimeout(() => {
-      setShowSpeakerTip(false);
-    }, 5000);
-
-    return () => clearTimeout(timer);
-  }
-}, [showSpeakerTip]);
-
-  // Karaoke play button handler
-
-  // Show placeholder when no track is playing
-  if (!currentTrack) {
-    return (
-      <div className="fixed inset-0 z-50 flex flex-col bg-background">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between p-4"
-        >
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate(-1)}
-          >
-            <ChevronDown className="h-6 w-6" />
-          </Button>
-          <h2 className="text-sm font-medium">Now Playing</h2>
-          <div className="w-10" />
-        </motion.div>
-
-        {/* No track placeholder */}
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-32 h-32 mx-auto mb-6 rounded-2xl bg-gradient-primary opacity-50" />
-            <h3 className="text-xl font-semibold mb-2 text-muted-foreground">No track playing</h3>
-            <p className="text-sm text-muted-foreground mb-6">Start playing music to see the full player</p>
-            <Button 
-              variant="outline" 
-              onClick={() => navigate('/')}
-            >
-              Go to Library
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  if (!currentTrack) return null;
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
-  const handleSeek = (value: number[]) => {
-    const newTime = (value[0] / 100) * duration;
-    seekToTime(newTime);
-  };
-
-  const handleToggleFavorite = async () => {
-    if (!currentTrack) return;
-    
-    try {
-      const updated = { ...currentTrack, favorite: !currentTrack.favorite };
-      await updateTrack(updated);
-      // Reflect change in local player state so UI updates immediately
-      usePlayerStore.setState({ currentTrack: updated });
-      toast.success(updated.favorite ? 'Added to favorites' : 'Removed from favorites');
-    } catch (error) {
-      console.error('Failed to toggle favorite:', error);
-      toast.error('Failed to update favorite');
+  const getPlaybackIcon = () => {
+    switch (playbackMode) {
+      case 'loop-all': return <Repeat className="h-6 w-6 text-primary" />;
+      case 'repeat-one': return <Repeat1 className="h-6 w-6 text-primary" />;
+      case 'shuffle': return <Shuffle className="h-6 w-6 text-primary" />;
+      default: return <ListMusic className="h-6 w-6 opacity-60" />; 
     }
   };
 
-  const RepeatIcon = repeat === 'one' ? Repeat1 : Repeat;
+  const getArtwork = (track: any, size?: number) => {
+    return track.coverArt ? (
+      <img src={track.coverArt} alt={track.title} className="h-full w-full object-cover" />
+    ) : (
+      <FallbackArtwork size={size} />
+    );
+  };
 
-  // Get current karaoke effect
-  const currentEffect = getKaraokeEffect();
-  // Show transition animation when showTransition is true (for both enter and exit)
-  const effectAnimation = getEffectAnimation(currentEffect, showTransition);
+  const handleClearQueue = () => {
+    setActivePanel(null);
+    clearQueue();
+    navigate(-1);
+  };
+
+  const handleReorder = (newUpcoming: typeof queue) => {
+    triggerHaptic(10);
+    const updatedQueue = [...queue.slice(0, queueIndex + 1), ...newUpcoming];
+    setQueue(updatedQueue);
+  };
+
+  const handleSeek = (amount: number) => {
+    triggerHaptic(10);
+    seekToTime(Math.max(0, Math.min(duration, currentTime + amount)));
+  };
 
   return (
-    <div ref={containerRef} className="fixed inset-0 z-50 flex flex-col bg-background">
-      {/* Transition Overlay */}
+    <div className="fixed inset-0 z-50 bg-background text-foreground overflow-hidden">
+      {/* Global Message Banner */}
       <AnimatePresence>
-        {showTransition && (
+        {bannerMessage && (
           <motion.div
-            className="fixed inset-0 z-[9999] bg-background"
-            {...effectAnimation}
-          />
+            initial={{ y: -60, opacity: 0 }}
+            animate={{ y: 20, opacity: 1 }}
+            exit={{ y: -60, opacity: 0 }}
+            className="absolute top-0 left-0 right-0 z-[100] flex justify-center pointer-events-none"
+          >
+            <div className="bg-primary/20 backdrop-blur-xl border border-primary/30 px-6 py-2 rounded-full shadow-2xl">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">
+                {bannerMessage}
+              </p>
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Party Mode */}
-      {karaokeMode ? (
-        <div className="fixed inset-0 z-50 flex flex-col bg-gradient-to-br from-purple-900 via-black to-indigo-900">
-          {/* Party Header */}
-          <div className="flex items-center justify-between p-6">
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-pink-500 to-purple-500 bg-clip-text text-transparent">
-           Party Mode
-            </h1> 
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={deactivateKaraokeMode}
-              className="h-12 w-12 rounded-full bg-white/10 backdrop-blur-sm hover:bg-white/20"
+      <motion.div
+        key={currentTrack.coverArt || 'fallback'}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 0.35 }}
+        transition={{ duration: 0.6 }}
+        className="absolute inset-0 blur-[120px] scale-150"
+        style={{
+          backgroundImage: currentTrack.coverArt ? `url(${currentTrack.coverArt})` : 'none',
+          backgroundColor: !currentTrack.coverArt ? '#111' : 'transparent',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }}
+      />
+
+      <div className="relative z-10 flex flex-col h-full">
+        <div className="flex items-center justify-between p-6">
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+            <ChevronDown className="h-8 w-8 opacity-80" />
+          </Button>
+          <Button variant="ghost" size="icon">
+            <MoreVertical className="h-6 w-6 opacity-80" />
+          </Button>
+        </div>
+
+        <div className="flex-1 flex items-center justify-center px-10">
+          <motion.div
+            key={currentTrack.id}
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="w-full max-w-[340px] aspect-square rounded-[40px] overflow-hidden shadow-2xl"
+          >
+            {getArtwork(currentTrack)}
+          </motion.div>
+        </div>
+
+        <div className="px-10 pb-4 text-center">
+  {/* Changed text-3xl to text-xl and reduced font weight slightly */}
+  <h1 className="text-xl font-semibold tracking-tight truncate">
+    {currentTrack.title}
+  </h1>
+  
+  {/* Changed text-xl to text-sm and added uppercase/tracking for a premium feel */}
+  <p className="text-sm font-medium text-muted-foreground/80 mt-1 truncate uppercase tracking-wider">
+    {currentTrack.artist}
+  </p>
+</div>
+
+
+        {/* Progress Slider + 10s Seek Buttons */}
+        <div className="px-6 py-6">
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => handleSeek(-10)} 
+              className="relative flex items-center justify-center opacity-60 hover:opacity-100 transition-opacity p-2"
             >
-              <X className="h-6 w-6" />
-            </Button>
+              <RotateCcw className="h-7 w-7" />
+              <span className="absolute text-[8px] font-bold mt-1">10</span>
+            </button>
+
+            <div className="flex-1">
+              <Slider 
+  value={[progress]} 
+  onValueChange={(v) => seekToTime((v[0] / 100) * duration)} 
+  max={100} 
+  step={0.1}
+  className="cursor-pointer" 
+/>
+            </div>
+
+            <button 
+              onClick={() => handleSeek(10)} 
+              className="relative flex items-center justify-center opacity-60 hover:opacity-100 transition-opacity p-2"
+            >
+              <RotateCw className="h-7 w-7" />
+              <span className="absolute text-[8px] font-bold mt-1">10</span>
+            </button>
           </div>
 
-          {/* Party Content */}
-          <div className="flex-1 flex flex-col items-center justify-center px-8 overflow-y-auto">
-                        {/* Listening Party Section */}
-          <motion.div
-            id="listening-party-section"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.4 }}
-            className="w-full max-w-lg p-4" 
-          >
-            <div className="bg-background/80 backdrop-blur-sm rounded-lg border border-border p-4">
-              <ListeningParty
-                userId={getCurrentUser().id}
-                username={getCurrentUser().username}
-              />
-            </div>
-          </motion.div>
+          <div className="mt-3 flex justify-between items-center text-xs text-muted-foreground font-bold tracking-widest px-11">
+            <span>{formatTime(currentTime)}</span>
+            <span>{formatTime(duration)}</span>
           </div>
         </div>
-      ) : (
-        <>
-          {/* Normal Player View */}
-          {/* Header */}
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center justify-between p-4"
+
+        <div className="flex items-center justify-between px-10 pb-8">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => { triggerHaptic(10); togglePlaybackMode(); }}
+            className="hover:bg-transparent active:bg-transparent focus:bg-transparent focus-visible:ring-0 shadow-none border-none outline-none"
           >
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate(-1)}
-            >
-              <ChevronDown className="h-6 w-6" />
-            </Button>
-            <h2 className="text-sm font-medium">Now Playing</h2>
-            <div className="w-10" />
-          </motion.div>
+            {getPlaybackIcon()}
+          </Button>
 
-          {/* Center content with swipeable pages: Now Playing (0) -> Visualizer (1) */}
-          <div className="flex-1 flex items-center justify-center px-2">
-            <Carousel className="w-full" opts={{ watchDrag: false }} setApi={setCarouselApi}>
-              <CarouselContent>
-                {/* Slide 1: Now Playing (existing album art card) */}
-                <CarouselItem>
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="flex items-center justify-center px-6"
-                  >
-                    <motion.div
-                      drag="x"
-                      dragConstraints={{ left: 0, right: 0 }}
-                      dragElastic={0.2}
-                      onDragEnd={handleDragEnd}
-                      style={{ x, opacity }}
-                      className="relative aspect-square w-full max-w-md cursor-grab active:cursor-grabbing"
-                    >
-                      <div className="absolute inset-0 rounded-2xl bg-gradient-glow opacity-60 blur-3xl" />
-                      <motion.div layoutId="player-art" className="relative aspect-square w-full rounded-2xl overflow-hidden shadow-2xl">
-                        {currentTrack.coverArt ? (
-                          <img
-                            src={currentTrack.coverArt}
-                            alt={`${currentTrack.title} cover`}
-                            className="h-full w-full object-cover"
-                            loading="eager"
-                          />
-                        ) : (
-                          <div className="absolute inset-0 rounded-2xl bg-gradient-primary" />
-                        )}
-                      </motion.div>
-                    </motion.div>
-                  </motion.div>
-                  <div className="mt-6 text-center text-xs text-muted-foreground">
-                    Swipe left for Party • Swipe right for Visualization
-                  </div>
-                </CarouselItem>
+          <Button variant="ghost" size="icon" onClick={previousTrack}>
+            <SkipBack className="h-10 w-10" />
+          </Button>
 
-                {/* Slide 2: Visualizer */}
-                <CarouselItem>
-                  <motion.div
-                    drag="x"
-                    dragConstraints={{ left: 0, right: 0 }}
-                    dragElastic={0.2}
-                    onDragEnd={(_e, info) => {
-                      // On visualizer slide: left swipe returns to album art, right swipe does nothing
-                      if (info.offset.x < -100) {
-                        carouselApi?.scrollPrev();
-                      }
-                    }}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="flex h-full items-center justify-center px-6"
-                  >
-                    <div className="w-full max-w-md">
-                      <div className="mb-4 text-center text-sm text-muted-foreground">Visualizer</div>
-                      <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                        <VisualizerBars bars={24} height={180} accent="purple" />
-                      </div>
-                    </div>
-                  </motion.div>
-                </CarouselItem>
-              </CarouselContent>
-            </Carousel>
-          </div>
+          <Button onClick={() => setIsPlaying(!isPlaying)} className="h-20 w-20 rounded-full bg-primary/10 backdrop-blur-xl border border-border">
+            {isPlaying ? <Pause className="h-10 w-10" /> : <Play className="h-10 w-10 ml-1" />}
+          </Button>
 
-          {/* Track Info */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className="px-8 pb-4"
+          <Button variant="ghost" size="icon" onClick={nextTrack}>
+            <SkipForward className="h-10 w-10" />
+          </Button>
+
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="hover:bg-transparent active:bg-transparent focus:bg-transparent focus-visible:ring-0 shadow-none border-none outline-none"
+            onClick={() => { 
+              triggerHaptic(20); 
+              toggleFavorite(currentTrack); 
+            }}
           >
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1 min-w-0">
-                <h1 className="truncate text-2xl font-bold">{currentTrack.title}</h1>
-                <p className="truncate text-muted-foreground">{currentTrack.artist}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                {/* <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={activateKaraokeMode}
-                  className="h-10 w-10"
-                >
-                  <Mic className="h-5 w-5" />
-                </Button> */}
-                {/* <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => carouselApi?.scrollNext()}
-                  className="h-10 w-10"
-                >
-                  <Headphones className="h-5 w-5" />
-                </Button> */}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleToggleFavorite}
-                >
-                  <Heart
-                    className={cn(
-                      'h-6 w-6 transition-colors',
-                      currentTrack.favorite ? 'fill-primary text-primary' : 'text-muted-foreground'
-                    )}
-                  />
-                </Button>
-                {/* <Button
-                  variant="secondary"
-                  size="icon"
-                  className="h-10 w-10"
-                  onClick={() => {
-                    const partySection = document.getElementById('listening-party-section');
-                    partySection?.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                >
-                  <Users className="h-5 w-5" />
-                </Button> */}
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Listening Party Section */}
-          {/* <motion.div
-            id="listening-party-section"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.4 }}
-            className="px-8 pb-4 mt-4 overflow-y-auto max-h-[calc(100vh-500px)]"
-          >
-            <div className="bg-background/80 backdrop-blur-sm rounded-lg border border-border p-4">
-              <ListeningParty
-                userId={getCurrentUser().id}
-                username={getCurrentUser().username}
-              />
-            </div>
-          </motion.div> */}
-
-          {/* Progress Bar */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3 }}
-            className="px-8 pb-4"
-          >
-            <Slider
-              value={[progress]}
-              onValueChange={handleSeek}
-              max={100}
-              step={0.1}
-              className="w-full"
+            <Heart 
+              className={cn(
+                "h-6 w-6 transition-all duration-300", 
+                currentTrack.favorite 
+                  ? "fill-red-500 text-red-500 scale-110 opacity-100" 
+                  : "text-foreground opacity-40 hover:opacity-100"
+              )} 
             />
-            <div className="mt-2 flex justify-between text-xs text-muted-foreground">
-              <span>{formatTime(currentTime)}</span>
-              <span>{formatTime(duration)}</span>
-            </div>
-          </motion.div>
+          </Button>
+        </div>
 
-          {/* Controls */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="px-8 pb-8"
-          >
+        <div className="relative bg-muted/60 backdrop-blur-3xl rounded-t-[40px] pt-4 pb-8 border-t border-border">
+          <div className="w-12 h-1.5 bg-muted rounded-full mx-auto mb-6" />
+          <div className="flex justify-around px-10">
+            <button 
+              onClick={() => setActivePanel('upNext')} 
+              className={cn("text-xs font-black uppercase tracking-[0.25em]", activePanel === 'upNext' ? "text-primary" : "text-muted-foreground")}
+            >
+              UP NEXT
+            </button>
+            <button 
+              onClick={() => setActivePanel('lyrics')} 
+              className={cn("text-xs font-black uppercase tracking-[0.25em]", activePanel === 'lyrics' ? "text-primary" : "text-muted-foreground")}
+            >
+              LYRICS
+            </button>
+          </div>
+        </div>
 
-            {/* Main controls */}
-            <div className="flex items-center justify-center gap-4">
-                <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => { vibrate(8); toggleShuffle(); }}
-                className={cn(shuffle && 'text-primary')}
-              >
-                <Shuffle className="h-5 w-5" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => { vibrate(12); previousTrack(); }}
-                className="h-12 w-12"
-              >
-                <SkipBack className="h-6 w-6" />
-              </Button>
+        <AnimatePresence>
+          {activePanel && (
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="absolute bottom-0 left-0 right-0 z-40 h-[65vh] rounded-t-[32px] bg-background/95 backdrop-blur-2xl border-t border-border px-6 pt-6 pb-10 flex flex-col"
+            >
+              <div className="flex items-center justify-between mb-6 flex-shrink-0">
+                <div className="flex gap-8">
+                  <button onClick={() => setActivePanel('upNext')} className={cn('text-xs font-black pb-2 transition-colors', activePanel === 'upNext' ? 'text-foreground border-b-2 border-primary' : 'text-muted-foreground')}>UP NEXT</button>
+                  <button onClick={() => setActivePanel('lyrics')} className={cn('text-xs font-black pb-2 transition-colors', activePanel === 'lyrics' ? 'text-foreground border-b-2 border-primary' : 'text-muted-foreground')}>LYRICS</button>
+                </div>
+                <button onClick={() => setActivePanel(null)} className="p-2 bg-muted/50 rounded-full">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
 
-              <Button
-                variant="default"
-                size="icon"
-                onClick={() => { vibrate(10); setIsPlaying(!isPlaying); }}
-                className="h-16 w-16 rounded-full bg-gradient-primary shadow-lg hover:scale-105 transition-transform"
-              >
-                {isPlaying ? (
-                  <Pause className="h-8 w-8" />
-                ) : (
-                  <Play className="h-8 w-8 ml-1" />
+              <div className="flex-1 overflow-hidden">
+                {activePanel === 'upNext' && (
+                  <div className="flex flex-col h-full">
+                    <div className="flex justify-between items-center mb-4">
+                      <span className="text-[10px] font-black uppercase text-muted-foreground">Queue</span>
+                      <Button variant="ghost" size="sm" className="text-[10px] text-destructive font-bold" onClick={handleClearQueue}>CLEAR QUEUE</Button>
+                    </div>
+
+                    <Reorder.Group
+                      axis="y"
+                      values={upcomingTracks}
+                      onReorder={handleReorder}
+                      layoutScroll
+                      className="flex-1 overflow-y-auto pr-2 space-y-1 custom-scrollbar overflow-x-hidden"
+                    >
+                      {upcomingTracks.length > 0 ? (
+                        upcomingTracks.map((track, relativeIndex) => (
+                          <QueueItem 
+                            key={track.id}
+                            track={track}
+                            actualIndex={queueIndex + 1 + relativeIndex}
+                            onPlay={() => playTrack(track, queue)}
+                            onRemove={removeFromQueue}
+                            getArtwork={getArtwork}
+                          />
+                        ))
+                      ) : (
+                        <div className="flex flex-col items-center justify-center h-full opacity-20">
+                          <Music className="h-10 w-10" />
+                          <p className="text-sm">Empty</p>
+                        </div>
+                      )}
+                    </Reorder.Group>
+                  </div>
                 )}
-              </Button>
-
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => { vibrate(12); nextTrack(); }}
-                className="h-12 w-12"
-              >
-                <SkipForward className="h-6 w-6" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => { vibrate(8); cycleRepeat(); }}
-                className={cn(repeat !== 'none' && 'text-primary')}
-              >
-                <RepeatIcon className="h-5 w-5" />
-              </Button>
-            </div>
-          </motion.div>
-
-          {/* Bottom safe area */}
-          <div className="h-safe-bottom" />
-        </>
-      )}
+                {activePanel === 'lyrics' && (
+                  <div className="h-full overflow-y-auto pr-2 custom-scrollbar pb-10">
+                    {isFetchingLyrics ? (
+                      <div className="flex flex-col items-center justify-center h-full space-y-4 opacity-50">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em]">Searching Database...</p>
+                      </div>
+                    ) : lyricsError ? (
+                      <div className="flex flex-col items-center justify-center h-full text-center space-y-4 opacity-40 px-10">
+                        <Music className="h-12 w-12" />
+                        <p className="text-lg font-medium italic leading-tight">{lyricsError}</p>
+                      </div>
+                    ) : (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        key={currentTrack.id}
+                        className="text-xl font-bold leading-relaxed text-center px-4 whitespace-pre-line"
+                      >
+                        {lyrics}
+                      </motion.div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }

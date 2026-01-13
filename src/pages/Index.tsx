@@ -1,16 +1,75 @@
- import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Music, Clock, TrendingUp, Plus, Heart } from 'lucide-react';
 import { Track, getAllTracks } from '@/lib/db';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 
-/**
- * Home page - Music collection overview
- * Displays category cards for quick navigation
- */
+type CategoryCardProps = {
+  onClick: () => void;
+  icon: React.ElementType;
+  label: string;
+  count: number;
+  iconColor: string;
+  delay: number;
+};
+
+function CategoryCard({
+  onClick,
+  icon: Icon,
+  label,
+  count,
+  iconColor,
+  delay,
+}: CategoryCardProps) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay }}
+      onClick={onClick}
+      className="
+        relative aspect-square cursor-pointer
+        rounded-2xl
+        bg-card
+        border border-border
+        hover:bg-muted/40
+        hover:shadow-md
+        transition-all
+      "
+    >
+      {/* Count badge */}
+      <div className="absolute top-3 right-3">
+        <span
+          className="
+            rounded-full
+            bg-muted
+            px-2 py-0.5
+            text-[10px]
+            font-semibold
+            text-foreground/70
+          "
+        >
+          {count}
+        </span>
+      </div>
+
+      <div className="flex h-full flex-col items-center justify-center gap-3">
+        <div className="rounded-xl bg-muted p-3">
+          <Icon className={`h-7 w-7 ${iconColor}`} strokeWidth={1.5} />
+        </div>
+
+        <h3 className="text-[12px] font-semibold uppercase tracking-[0.15em] text-foreground/80 text-center">
+          {label}
+        </h3>
+      </div>
+    </motion.div>
+  );
+}
+
 export default function Index() {
   const navigate = useNavigate();
+
   const [tracks, setTracks] = useState<Track[]>([]);
   const [recentlyPlayed, setRecentlyPlayed] = useState<Track[]>([]);
   const [mostPlayed, setMostPlayed] = useState<Track[]>([]);
@@ -18,7 +77,6 @@ export default function Index() {
   const [favoriteTracks, setFavoriteTracks] = useState<Track[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Load tracks from IndexedDB
   useEffect(() => {
     loadTracks();
   }, []);
@@ -29,28 +87,32 @@ export default function Index() {
       allTracks.sort((a, b) => a.title.localeCompare(b.title));
       setTracks(allTracks);
 
-      const recent = allTracks
-        .filter(t => typeof t.lastPlayed === 'number')
-        .sort((a, b) => (b.lastPlayed || 0) - (a.lastPlayed || 0))
-        .slice(0, 10);
-      setRecentlyPlayed(recent);
+      setRecentlyPlayed(
+        allTracks
+          .filter(t => typeof t.lastPlayed === 'number')
+          .sort((a, b) => (b.lastPlayed ?? 0) - (a.lastPlayed ?? 0))
+          .slice(0, 10)
+      );
 
-      const most = allTracks
-        .slice()
-        .sort((a, b) => (b.playCount || 0) - (a.playCount || 0))
-        .slice(0, 10);
-      setMostPlayed(most);
+      setMostPlayed(
+        [...allTracks]
+          .sort((a, b) => (b.playCount ?? 0) - (a.playCount ?? 0))
+          .slice(0, 10)
+      );
 
-      const added = allTracks
-        .slice()
-        .sort((a, b) => new Date(b.addedAt).getTime() - new Date(a.addedAt).getTime())
-        .slice(0, 10);
-      setRecentlyAdded(added);
+      setRecentlyAdded(
+        [...allTracks]
+          .sort(
+            (a, b) =>
+              new Date(b.addedAt).getTime() -
+              new Date(a.addedAt).getTime()
+          )
+          .slice(0, 10)
+      );
 
-      const favs = allTracks.filter(t => t.favorite);
-      setFavoriteTracks(favs);
+      setFavoriteTracks(allTracks.filter(t => t.favorite));
     } catch (error) {
-      console.error('Failed to load tracks:', error);
+      console.error(error);
       toast.error('Failed to load your music library');
     } finally {
       setLoading(false);
@@ -58,79 +120,85 @@ export default function Index() {
   };
 
   return (
-    <div className="min-h-screen pb-40 pt-4">
-      <div className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-glow opacity-50" />
-        <div className="relative px-4 py-8">
-          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center">
-            <h1 className="mb-2 bg-gradient-primary bg-clip-text text-4xl font-bold text-transparent">VibeSync</h1>
-            <p className="text-muted-foreground">Your personal music collection</p>
-          </motion.div>
-        </div>
+    <div className="min-h-screen bg-background pb-40 pt-6">
+      {/* Header */}
+      <div className="px-4 py-10 text-center">
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <h1 className="mb-1 text-4xl font-black tracking-tight text-foreground">
+            VibeSync
+          </h1>
+          <p className="text-xs font-medium uppercase tracking-[0.3em] text-muted-foreground">
+            Your personal collection
+          </p>
+        </motion.div>
       </div>
 
-      <div className="container mx-auto max-w-2xl px-4">
-        {!loading && (recentlyPlayed.length > 0 || mostPlayed.length > 0 || recentlyAdded.length > 0 || favoriteTracks.length > 0) && (
-          <div className="grid grid-cols-2 gap-3 mb-8">
-            {favoriteTracks.length > 0 && (
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
-                className="relative aspect-[4/3] rounded-2xl overflow-hidden cursor-pointer transition-transform hover:scale-105"
-                style={{ background: 'linear-gradient(135deg, #ff758c 0%, #ff7eb3 100%)' }}
-                onClick={() => navigate('/favorites')}>
-                <div className="absolute top-3 right-3 bg-white/20 backdrop-blur-sm rounded-full px-2 py-1 text-white text-xs font-semibold">{favoriteTracks.length}</div>
-                <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
-                  <Heart className="h-10 w-10 text-white mb-2" strokeWidth={1.5} />
-                  <h3 className="text-white text-lg font-bold text-center">FAVORITES</h3>
-                </div>
-              </motion.div>
-            )}
-            {recentlyPlayed.length > 0 && (
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-                className="relative aspect-[4/3] rounded-2xl overflow-hidden cursor-pointer transition-transform hover:scale-105"
-                style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}
-                onClick={() => navigate('/recently-played')}>
-                <div className="absolute top-3 right-3 bg-white/20 backdrop-blur-sm rounded-full px-2 py-1 text-white text-xs font-semibold">{recentlyPlayed.length}</div>
-                <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
-                  <Clock className="h-10 w-10 text-white mb-2" strokeWidth={1.5} />
-                  <h3 className="text-white text-lg font-bold text-center">RECENT PLAY</h3>
-                </div>
-              </motion.div>
-            )}
+      <div className="container mx-auto max-w-2xl px-6">
+        {!loading && (
+          <div className="mb-8 grid grid-cols-2 gap-4">
+            <CategoryCard
+              onClick={() => navigate('/favorites')}
+              icon={Heart}
+              label="Favorites"
+              count={favoriteTracks.length}
+              iconColor="text-rose-500"
+              delay={0.05}
+            />
 
-            {recentlyAdded.length > 0 && (
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-                className="relative aspect-[4/3] rounded-2xl overflow-hidden cursor-pointer transition-transform hover:scale-105"
-                style={{ background: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)' }}
-                onClick={() => navigate('/recently-added')}>
-                <div className="absolute top-3 right-3 bg-white/20 backdrop-blur-sm rounded-full px-2 py-1 text-white text-xs font-semibold">{recentlyAdded.length}</div>
-                <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
-                  <Plus className="h-10 w-10 text-white mb-2" strokeWidth={1.5} />
-                  <h3 className="text-white text-lg font-bold text-center">RECENT ADD</h3>
-                </div>
-              </motion.div>
-            )}
+            <CategoryCard
+              onClick={() => navigate('/recently-played')}
+              icon={Clock}
+              label="Recent Play"
+              count={recentlyPlayed.length}
+              iconColor="text-blue-500"
+              delay={0.1}
+            />
 
-            {mostPlayed.length > 0 && (
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-                className="relative aspect-[4/3] rounded-2xl overflow-hidden cursor-pointer transition-transform hover:scale-105"
-                style={{ background: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)' }}
-                onClick={() => navigate('/most-played')}>
-                <div className="absolute top-3 right-3 bg-white/20 backdrop-blur-sm rounded-full px-2 py-1 text-purple-900 text-xs font-semibold">{mostPlayed.length}</div>
-                <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
-                  <TrendingUp className="h-10 w-10 text-purple-900 mb-2" strokeWidth={1.5} />
-                  <h3 className="text-purple-900 text-lg font-bold text-center">MOST PLAY</h3>
-                </div>
-              </motion.div>
-            )}
+            <CategoryCard
+              onClick={() => navigate('/recently-added')}
+              icon={Plus}
+              label="Recent Add"
+              count={recentlyAdded.length}
+              iconColor="text-emerald-500"
+              delay={0.15}
+            />
+
+            <CategoryCard
+              onClick={() => navigate('/most-played')}
+              icon={TrendingUp}
+              label="Most Played"
+              count={mostPlayed.length}
+              iconColor="text-indigo-500"
+              delay={0.2}
+            />
           </div>
         )}
-        
+
         {!loading && tracks.length === 0 && (
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-            className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border bg-muted/20 py-12">
-            <Music className="mb-4 h-16 w-16 text-muted-foreground" />
-            <h3 className="mb-2 text-lg font-semibold">No music yet</h3>
-            <p className="mb-4 text-sm text-muted-foreground">Import your music from the Library page to get started</p>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="
+              flex flex-col items-center justify-center
+              rounded-2xl
+              border border-border
+              bg-card
+              py-16 px-6
+              text-center
+            "
+          >
+            <div className="mb-6 rounded-full bg-muted p-6">
+              <Music className="h-10 w-10 text-muted-foreground" />
+            </div>
+            <h3 className="mb-2 text-lg font-semibold text-foreground">
+              Your library is empty
+            </h3>
+            <p className="max-w-[220px] text-sm leading-relaxed text-muted-foreground">
+              Import tracks in settings to start building your collection.
+            </p>
           </motion.div>
         )}
       </div>

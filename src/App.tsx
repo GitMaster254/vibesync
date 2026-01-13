@@ -21,6 +21,7 @@ const RecentlyPlayed = lazy(() => import("./pages/RecentlyPlayed"));
 const RecentlyAdded = lazy(() => import("./pages/RecentlyAdded"));
 const MostPlayed = lazy(() => import("./pages/MostPlayed"));
 const ExplorerPage = lazy(() => import("./pages/explorer"));
+const Terms = lazy(() => import("./pages/Terms"));
 import { NavBar } from "./components/NavBar";
 import { PlayerBar } from "./components/PlayerBar";
 import AudioProvider from "./components/AudioProvider";
@@ -85,6 +86,7 @@ const App = () => {
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/import" element={<ImportPage />} />
                   <Route path="/explore" element={<ExplorerPage />}/>
+                  <Route path="/terms" element={<Terms />} />
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                   <Route path="*" element={<NotFound />} />
                 </Routes>
