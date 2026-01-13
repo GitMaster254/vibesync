@@ -12,28 +12,34 @@ import { usePlayerStore } from "@/store/usePlayerStore";
 import { spotifyProxy, isProxyConfigured, ExplorerTrack, Genre } from "@/lib/spotify-proxy";
 
 const genreIconMap: Record<string, React.ComponentType<{ className?: string }>> = {
-pop: Heart,
-rock: Guitar,
-jazz: Piano,
-classical: Piano,
-electronic: Drum,
-"hip-hop": Mic,
-rap: Mic,
-country: Guitar,
-folk: Guitar,
-reggae: Speaker,
-blues: Guitar,
-soul: Heart,
-funk: Drum,
-disco: Radio,
-techno: Drum,
-house: Headphones,
-ambient: Radio,
-indie: Guitar,
-alternative: Guitar,
-metal: Guitar,
-punk: Guitar,
-// Add more as needed
+  // Kenyan Genres
+  benga: Guitar,
+  gengetone: Drum,
+  "afro-pop": Heart,
+  "afro-fusion": Drum,
+  gospel: Heart,
+  taarab: Piano,
+  genge: Mic,
+  kapuka: Speaker,
+  mugithi: Guitar,
+  ohangla: Drum,
+  reggae: Speaker,
+  amapiano: Drum,
+  drill: Mic,
+  electronic: Drum,
+
+  // Global Genres
+  pop: Heart,
+  "hip hop": Mic,
+  rap: Mic,
+  rock: Guitar,
+  "r&b": Heart,
+  afrobeat: Drum,
+  highlife: Speaker,
+  jazz: Piano,
+  soul: Heart,
+  folk: Guitar,
+  // Add more as needed
 };
 
 export default function Explorer(): JSX.Element {
