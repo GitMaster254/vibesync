@@ -111,6 +111,7 @@ export function TrackCard({
       // Determine the source URL for the track
       let sourceUrl = track.fileUrl;
 
+      
       // Check if this is a Jamendo track with previewUrl (ExplorerTrack format)
       const jamendoTrack = track as any;
       if (jamendoTrack.previewUrl) {
@@ -195,11 +196,13 @@ export function TrackCard({
       // Get the blob
       const blob = await response.blob();
 
+      
       // Basic validation - check if blob has reasonable size for audio
       if (blob.size < 1024) { // Less than 1KB is suspicious
         throw new Error('Downloaded file is too small to be a valid audio file');
       }
 
+      
       // Create a temporary URL for the blob
       const blobUrl = URL.createObjectURL(blob);
 
